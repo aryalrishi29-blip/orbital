@@ -1,49 +1,38 @@
 name: DevSecOps Security Scans
 
-# Runs on every PR and every push to main.
-# Findings are uploaded to GitHub Security tab (SARIF format).
-# CRITICAL findings block merges via branch protection.
-
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 6 * * 1"    # Weekly full scan every Monday 06:00 UTC
+    - cron: "0 6 * * 1"  # Weekly full scan every Monday 06:00 UTC
 
 permissions:
-  contents:      read
-  security-events: write   # Required to upload SARIF results
-  actions:       read
+  contents: read
+  security-events: write
+  actions: read
+  id-token: write  # required for Cosign OIDC keyless signing
 
 jobs:
-
-  # ────────────────────────────────────────────────────────────
-  # 1. Dependency vulnerability scan (pip packages)
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 1. Dependency scan ──────────────
   dependency-scan:
-    name: "Dependency scan (pip-audit)"
+    name: Dependency scan (pip-audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install pip-audit
         run: pip install pip-audit
-
       - name: Audit dependencies
         run: |
           cd app
           pip-audit -r requirements.txt \
             --format json \
             --output pip-audit-report.json \
-            --desc \
-            || true    # don't fail here — SARIF upload handles severity gating
-
+            --desc || true
       - name: Upload pip-audit results
         uses: actions/upload-artifact@v4
         with:
@@ -51,181 +40,152 @@ jobs:
           path: app/pip-audit-report.json
           retention-days: 30
 
-  # ────────────────────────────────────────────────────────────
-  # 2. SAST — Semgrep static analysis
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 2. SAST (Semgrep) ──────────────
   sast-semgrep:
-    name: "SAST (Semgrep)"
+    name: SAST (Semgrep)
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Semgrep
         run: |
           semgrep \
-            --config "p/django"              \
-            --config "p/python"              \
-            --config "p/secrets"             \
-            --config "p/owasp-top-ten"       \
-            --sarif                          \
-            --output semgrep.sarif           \
-            --no-error                       \
-            --severity ERROR                 \
+            --config "p/django" \
+            --config "p/python" \
+            --config "p/secrets" \
+            --config "p/owasp-top-ten" \
+            --sarif \
+            --output semgrep.sarif \
+            --no-error \
+            --severity ERROR \
             --exclude "app/myapp/migrations" \
             app/
         env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}  # optional — for Semgrep Cloud
-
-      - name: Upload Semgrep SARIF to GitHub Security
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: semgrep.sarif
-          category:   semgrep
+          category: semgrep
 
-  # ────────────────────────────────────────────────────────────
-  # 3. Secret scanning — Gitleaks
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 3. Secret scan (Gitleaks) ──────────────
   secret-scan:
-    name: "Secret scan (Gitleaks)"
+    name: Secret scan (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0    # full history so Gitleaks can scan all commits
-
+          fetch-depth: 0
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # required for orgs
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-  # ────────────────────────────────────────────────────────────
-  # 4. Container image scan — Trivy
-  #    Builds the image, scans it, blocks on CRITICAL CVEs
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 4. Container scan (Trivy) ──────────────
   container-scan:
-    name: "Container scan (Trivy)"
+    name: Container scan (Trivy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build image for scanning
+      - name: Build image
         run: |
-          docker build \
-            --target production \
-            --tag orbital:scan \
-            ./app
-
-      - name: Run Trivy vulnerability scan
+          IMAGE=orbital:scan
+          docker build --target production -t $IMAGE ./app
+      - name: Run Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref:      orbital:scan
-          format:         sarif
-          output:         trivy.sarif
-          severity:       CRITICAL,HIGH
-          ignore-unfixed: true          # skip CVEs with no fix available
-          trivyignores:   security/trivy/.trivyignore
-          exit-code:      0             # report findings without blocking (unfixed CVEs in base image)
-
-      - name: Upload Trivy SARIF to GitHub Security
+          image-ref: orbital:scan
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 0
+      - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy.sarif
-          category:   trivy
+          category: trivy
 
-  # ────────────────────────────────────────────────────────────
-  # 5. Dockerfile lint — Hadolint
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 5. Dockerfile lint (Hadolint) ──────────────
   dockerfile-lint:
-    name: "Dockerfile lint (Hadolint)"
+    name: Dockerfile lint (Hadolint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile:    app/Dockerfile
-          format:        sarif
-          output-file:   hadolint.sarif
-          no-fail:       false
-          failure-threshold: warning
-
-      - name: Upload Hadolint SARIF
+          dockerfile: app/Dockerfile
+          format: sarif
+          output-file: hadolint.sarif
+          no-fail: true           # Do not fail for warnings
+          failure-threshold: error
+      - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: hadolint.sarif
-          category:   hadolint
+          category: hadolint
 
-  # ────────────────────────────────────────────────────────────
-  # 6. Kubernetes manifest security — Kubescape
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 6. Kubernetes manifest scan (Kubescape) ──────────────
   k8s-security:
-    name: "K8s manifest scan (Kubescape)"
+    name: K8s manifest scan (Kubescape)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Kubescape
         uses: kubescape/github-action@main
         with:
-          files:       k8s/
-          frameworks:  NSA,MITRE
-          failedThreshold: 50      # fail if more than 50% of controls fail
-          format:      sarif
-          outputFile:  kubescape.sarif
-
-      - name: Upload Kubescape SARIF
+          files: k8s/
+          frameworks: NSA,MITRE
+          failedThreshold: 50
+          format: sarif
+          outputFile: kubescape.sarif
+      - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: kubescape.sarif
-          category:   kubescape
+          category: kubescape
 
-  # ────────────────────────────────────────────────────────────
-  # 7. Image signing — cosign (runs only on main after ECR push)
-  # ────────────────────────────────────────────────────────────
+  # ────────────── 7. Image signing (Cosign) ──────────────
   sign-image:
-    name: "Sign image (cosign)"
+    name: Sign image (Cosign)
     runs-on: ubuntu-latest
-    needs: container-scan
+    needs: [container-scan, dockerfile-lint]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
-      id-token: write    # required for keyless signing via OIDC
+      id-token: write
       contents: read
     steps:
-      - name: Install cosign
+      - name: Install Cosign
         uses: sigstore/cosign-installer@v3
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            us-east-1
-
+          aws-region: us-east-1
       - name: Login to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Sign the image with GitHub OIDC (keyless)
-        env:
-          IMAGE: ${{ steps.login-ecr.outputs.registry }}/orbital:${{ github.sha }}
+      - name: Build and tag image
         run: |
-          cosign sign --yes "$IMAGE"
-          echo "Image signed: $IMAGE"
-
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/orbital:${{ github.sha }}
+          docker build --target production -t $IMAGE ./app
+          docker push $IMAGE
+      - name: Sign the image (keyless OIDC)
+        run: |
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/orbital:${{ github.sha }}
+          cosign sign --yes $IMAGE
       - name: Verify signature
-        env:
-          IMAGE: ${{ steps.login-ecr.outputs.registry }}/orbital:${{ github.sha }}
         run: |
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/orbital:${{ github.sha }}
           cosign verify \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "$IMAGE"
-          echo "Signature verified."
+            $IMAGE
