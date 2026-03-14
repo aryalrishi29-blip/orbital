@@ -123,7 +123,7 @@ jobs:
           format: sarif
           output-file: hadolint.sarif
           no-fail: true           # Do not fail for warnings
-          failure-threshold: error
+          failure-threshold: error # Fail only on errors
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
