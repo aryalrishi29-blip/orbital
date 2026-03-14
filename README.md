@@ -60,22 +60,6 @@ and a weekly cost report posted automatically to Slack every Monday at 08:00 UTC
 
 ---
 
-## 🎥 3-Minute Platform Demo
-
-> **[▶ Watch the demo on YouTube](https://youtube.com/your-demo-link)**
->
-> The demo walks through:
-> 1. `git push` triggering the 5-job GitHub Actions pipeline
-> 2. Docker build → Trivy CVE scan → cosign image signing → push to ECR
-> 3. ArgoCD detecting the manifest commit and syncing the cluster
-> 4. Blue-green rollout with Prometheus AnalysisTemplate gate
-> 5. Grafana metrics updating in real time
-> 6. Jaeger showing the first traces from the new version
->
-> *Replace the link above with your recorded walkthrough.*
-
----
-
 ## Why This Architecture
 
 Each decision here was deliberate. The full reasoning is in
