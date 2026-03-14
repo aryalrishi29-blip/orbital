@@ -1,0 +1,106 @@
+# Helm values for kube-prometheus-stack
+# Customise retention, storage, alerting, and Grafana credentials here.
+
+# ── Prometheus ─────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    # Scrape every 15 seconds
+    scrapeInterval: 15s
+    # Retain 30 days of metrics
+    retention: 30d
+    # Persistent storage (ensure your cluster has a default StorageClass)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Auto-discover ServiceMonitor resources in ALL namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues:     false
+    ruleSelectorNilUsesHelmValues:           false
+
+    # Resource limits for the Prometheus server pod
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits:   { cpu: "1",  memory: 2Gi  }
+
+# ── Alertmanager ───────────────────────────────────────────────
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+  config:
+    global:
+      resolve_timeout: 5m
+      # Configure your SMTP or Slack webhook here
+      slack_api_url: "YOUR_SLACK_WEBHOOK_URL"   # ← replace
+
+    route:
+      receiver: default
+      group_by:        [alertname, namespace]
+      group_wait:      30s
+      group_interval:  5m
+      repeat_interval: 4h
+      routes:
+        - matchers:
+            - severity = critical
+          receiver:        pagerduty-critical
+          repeat_interval: 1h
+
+    receivers:
+      - name: default
+        slack_configs:
+          - channel:     "#alerts"
+            send_resolved: true
+            title:       '{{ .GroupLabels.alertname }}'
+            text:        '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+      - name: pagerduty-critical
+        pagerduty_configs:
+          - routing_key: "YOUR_PAGERDUTY_KEY"  # ← replace
+            description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+
+# ── Grafana ────────────────────────────────────────────────────
+grafana:
+  adminPassword: changeme-use-a-secret   # ← replace; better: use a K8s secret ref
+
+  persistence:
+    enabled: true
+    size:    10Gi
+
+  # Auto-load dashboards from ConfigMaps in the observability namespace
+  sidecar:
+    dashboards:
+      enabled:           true
+      searchNamespace:   observability
+      folderAnnotation:  grafana_folder
+
+  # Grafana ini overrides
+  grafana.ini:
+    server:
+      root_url:     https://grafana.your-domain.com   # ← replace
+    auth.anonymous:
+      enabled: false
+    security:
+      allow_embedding: false
+      cookie_secure:   true
+
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+# ── Node exporter ──────────────────────────────────────────────
+nodeExporter:
+  enabled: true    # exports host-level CPU / memory / disk metrics
+
+# ── kube-state-metrics ─────────────────────────────────────────
+kubeStateMetrics:
+  enabled: true    # exports Deployment, Pod, ReplicaSet states as metrics

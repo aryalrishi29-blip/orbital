@@ -1,0 +1,72 @@
+# Kubecost Helm values for Orbital platform
+
+kubecostProductConfigs:
+  clusterName: orbital-production
+  currencyCode: USD
+
+  # Cost allocation labels — Kubecost groups costs by these K8s labels.
+  # Orbital pods carry app= and environment= labels automatically.
+  labelMappingConfigs:
+    enabled: true
+    owner_label:       app
+    team_label:        team
+    environment_label: environment
+    product_label:     app
+    namespace_label:   kubernetes_namespace
+
+  # Budget alerts — notify Slack when monthly spend exceeds threshold
+  alerts:
+    - type:        budget
+      threshold:   150        # alert when orbital namespace exceeds $150/month
+      window:      monthly
+      aggregation: namespace
+      filter:      orbital
+      slackWebhookUrl: "YOUR_SLACK_WEBHOOK_URL"  # ← replace
+
+    - type:        budget
+      threshold:   500        # alert when total cluster exceeds $500/month
+      window:      monthly
+      aggregation: cluster
+      slackWebhookUrl: "YOUR_SLACK_WEBHOOK_URL"  # ← replace
+
+    - type:        efficiency  # alert when cluster efficiency drops below 60%
+      threshold:   0.6
+      window:      daily
+      aggregation: cluster
+      slackWebhookUrl: "YOUR_SLACK_WEBHOOK_URL"  # ← replace
+
+# Use existing Prometheus (kube-prometheus-stack) instead of bundled one
+prometheus:
+  enabled: false
+
+global:
+  prometheus:
+    fqdn: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+    enabled: true
+
+# Use existing Grafana
+grafana:
+  enabled: false
+
+global:
+  grafana:
+    enabled:   true
+    proxy:     false
+    domainName: kube-prometheus-stack-grafana.observability.svc.cluster.local
+
+# Persistence for cost history
+persistentVolume:
+  enabled:      true
+  size:         32Gi
+  storageClass: ""    # use cluster default
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { cpu: 500m, memory: 1Gi  }
+
+# Savings recommendations — run daily
+savings:
+  requestSizing:
+    enabled:            true
+    targetCPUUtilization: 0.7     # recommend sizing for 70% CPU target
+    targetRAMUtilization: 0.7

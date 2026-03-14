@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orbital
+  namespace: orbital
+spec:
+  # Kubernetes must keep at least 2 pods running during voluntary disruptions
+  # (node drains, cluster upgrades, etc.)
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: orbital

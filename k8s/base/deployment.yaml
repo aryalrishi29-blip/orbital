@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orbital
+  namespace: orbital
+  labels:
+    app: orbital
+    version: "1.0.0"
+  annotations:
+    # ArgoCD Rollouts uses this for blue-green strategy
+    argocd.argoproj.io/managed-by: argocd
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5          # keep last 5 ReplicaSets for rollback
+  selector:
+    matchLabels:
+      app: orbital
+  strategy:
+    type: RollingUpdate             # overridden to BlueGreen by ArgoCD Rollout
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0             # zero downtime — never kill a pod before a new one is ready
+  template:
+    metadata:
+      labels:
+        app: orbital
+      annotations:
+        # Force pod restart when ConfigMap changes
+        checksum/config: "{{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}"
+        # Prometheus auto-discovery
+        prometheus.io/scrape: "true"
+        prometheus.io/path:   "/metrics/"
+        prometheus.io/port:   "8000"
+    spec:
+      # ── Security context (pod level) ─────────────────────────
+      securityContext:
+        runAsNonRoot: true
+        runAsUser:    1000
+        runAsGroup:   1000
+        fsGroup:      1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # ── Init container: wait for DB before starting app ──────
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z $DB_HOST $DB_PORT; do
+                echo "Waiting for Postgres at $DB_HOST:$DB_PORT..."
+                sleep 2
+              done
+              echo "Database is ready."
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: orbital-secrets
+                  key: DB_HOST
+            - name: DB_PORT
+              value: "5432"
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 32Mi }
+
+        - name: run-migrations
+          image: REPLACE_WITH_ECR_IMAGE   # updated by CI pipeline
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - secretRef:
+                name: orbital-secrets
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+
+      containers:
+        - name: orbital
+          image: REPLACE_WITH_ECR_IMAGE   # updated by CI pipeline (e.g. 123.dkr.ecr.us-east-1.amazonaws.com/orbital:abc123)
+          ports:
+            - containerPort: 8000
+              name: http
+
+          # ── Environment ───────────────────────────────────────
+          envFrom:
+            - secretRef:
+                name: orbital-secrets
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: myapp.settings
+
+          # ── Resource requests and limits ──────────────────────
+          # Without these, one pod can starve others on the node.
+          # Sizing for t3.medium (2 vCPU / 4 GB); adjust per instance type.
+          resources:
+            requests:
+              cpu:    200m     # 0.2 vCPU — guaranteed minimum
+              memory: 256Mi
+            limits:
+              cpu:    500m     # 0.5 vCPU — hard ceiling
+              memory: 512Mi
+
+          # ── Health probes ─────────────────────────────────────
+          # startupProbe: gives the app up to 30s to boot before
+          #   liveness kicks in — avoids false restarts on cold start
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            failureThreshold: 10
+            periodSeconds:    3
+
+          # livenessProbe: restarts the container if it deadlocks
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 0     # startupProbe already handled delay
+            periodSeconds:       15
+            failureThreshold:    3
+            timeoutSeconds:      5
+
+          # readinessProbe: removes pod from Service endpoints when
+          #   it can't serve — prevents traffic to booting pods
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds:       10
+            failureThreshold:    2
+            timeoutSeconds:      3
+
+          # ── Container security context ────────────────────────
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem:   true
+            capabilities:
+              drop: ["ALL"]
+
+          # Writable tmp dir for Django (read-only root filesystem)
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+
+      # Spread pods across availability zones
+      topologySpreadConstraints:
+        - maxSkew:           1
+          topologyKey:       topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: orbital
+
+      # Allow 30s for in-flight requests to complete before SIGKILL
+      terminationGracePeriodSeconds: 30

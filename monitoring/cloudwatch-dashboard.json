@@ -1,0 +1,91 @@
+{
+  "_comment": "Deploy with: aws cloudwatch put-dashboard --dashboard-name orbital --dashboard-body file://monitoring/cloudwatch-dashboard.json",
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0, "y": 0, "width": 12, "height": 6,
+      "properties": {
+        "title": "EC2 CPU Utilisation",
+        "metrics": [
+          ["AWS/EC2", "CPUUtilization", "InstanceId", "REPLACE_WITH_INSTANCE_ID",
+           {"stat": "Average", "period": 60, "color": "#2196F3"}]
+        ],
+        "view": "timeSeries",
+        "yAxis": {"left": {"min": 0, "max": 100, "label": "%"}},
+        "period": 60,
+        "annotations": {
+          "horizontal": [{"label": "Alert threshold", "value": 80, "color": "#E53935"}]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 0, "width": 12, "height": 6,
+      "properties": {
+        "title": "Network In / Out",
+        "metrics": [
+          ["AWS/EC2", "NetworkIn",  "InstanceId", "REPLACE_WITH_INSTANCE_ID",
+           {"stat": "Sum", "period": 60, "label": "In",  "color": "#43A047"}],
+          ["AWS/EC2", "NetworkOut", "InstanceId", "REPLACE_WITH_INSTANCE_ID",
+           {"stat": "Sum", "period": 60, "label": "Out", "color": "#FB8C00"}]
+        ],
+        "view": "timeSeries"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "EC2 Memory Utilisation",
+        "metrics": [
+          ["CWAgent", "mem_used_percent", "InstanceId", "REPLACE_WITH_INSTANCE_ID",
+           {"stat": "Average", "period": 60, "color": "#8E24AA"}]
+        ],
+        "view": "timeSeries",
+        "yAxis": {"left": {"min": 0, "max": 100, "label": "%"}},
+        "annotations": {
+          "horizontal": [{"label": "Alert threshold", "value": 85, "color": "#E53935"}]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "Disk Utilisation",
+        "metrics": [
+          ["CWAgent", "disk_used_percent", "InstanceId", "REPLACE_WITH_INSTANCE_ID",
+           "path", "/", "fstype", "xfs",
+           {"stat": "Average", "period": 300, "color": "#00897B"}]
+        ],
+        "view": "timeSeries",
+        "yAxis": {"left": {"min": 0, "max": 100, "label": "%"}},
+        "annotations": {
+          "horizontal": [{"label": "Alert threshold", "value": 80, "color": "#E53935"}]
+        }
+      }
+    },
+    {
+      "type": "log",
+      "x": 16, "y": 6, "width": 8, "height": 6,
+      "properties": {
+        "title": "Recent 5xx Errors (from app logs)",
+        "query":  "SOURCE 'orbital' | fields @timestamp, @message | filter @message like /\"status\": 5/ | sort @timestamp desc | limit 20",
+        "region": "us-east-1",
+        "view":   "table"
+      }
+    },
+    {
+      "type": "alarm",
+      "x": 0, "y": 12, "width": 24, "height": 2,
+      "properties": {
+        "title":  "Alarm status",
+        "alarms": [
+          "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:orbital-cpu-high",
+          "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:orbital-memory-high",
+          "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:orbital-health-check-failed"
+        ]
+      }
+    }
+  ]
+}

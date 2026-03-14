@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orbital-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"   # Grafana sidecar watches for this label
+  annotations:
+    grafana_folder: "Django App"
+data:
+  orbital-overview.json: |
+    # Grafana sidecar loads this file automatically.
+    # Paste the contents of observability/grafana/dashboards/orbital-overview.json here
+    # OR use the import script below.
+    #
+    # Import via API (run after port-forwarding Grafana to localhost:3000):
+    #   GRAFANA_PASS=$(kubectl get secret kube-prometheus-stack-grafana -n observability \
+    #     -o jsonpath="{.data.admin-password}" | base64 --decode)
+    #   curl -s -X POST http://admin:${GRAFANA_PASS}@localhost:3000/api/dashboards/import \
+    #     -H "Content-Type: application/json" \
+    #     -d "{\"dashboard\": $(cat observability/grafana/dashboards/orbital-overview.json), \"overwrite\": true, \"folderId\": 0}"

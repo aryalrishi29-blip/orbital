@@ -1,0 +1,162 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orbital-alerts
+  namespace: orbital
+  labels:
+    release: kube-prometheus-stack    # required for operator discovery
+spec:
+  groups:
+
+    # ── SLO: Availability ──────────────────────────────────────
+    # SLO: 99.5% of requests succeed (status < 500) over a 5-min window
+    - name: orbital.slo.availability
+      interval: 30s
+      rules:
+        - alert: DjangoHighErrorRate
+          expr: |
+            (
+              sum(rate(django_http_requests_total{namespace="orbital", status=~"5.."}[5m]))
+              /
+              sum(rate(django_http_requests_total{namespace="orbital"}[5m]))
+            ) > 0.005
+          for: 2m
+          labels:
+            severity: critical
+            team:     platform
+          annotations:
+            summary:     "Django error rate above SLO (> 0.5%)"
+            description: >
+              HTTP 5xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes.
+              SLO target is 99.5% availability. Immediate investigation required.
+            runbook: "https://github.com/YOUR_USERNAME/orbital/wiki/runbooks/high-error-rate"
+
+        - alert: DjangoWarningErrorRate
+          expr: |
+            (
+              sum(rate(django_http_requests_total{namespace="orbital", status=~"5.."}[5m]))
+              /
+              sum(rate(django_http_requests_total{namespace="orbital"}[5m]))
+            ) > 0.001
+          for: 5m
+          labels:
+            severity: warning
+            team:     platform
+          annotations:
+            summary:     "Django error rate elevated (> 0.1%)"
+            description: "HTTP 5xx rate is {{ $value | humanizePercentage }}. Investigate before it hits the SLO threshold."
+
+    # ── SLO: Latency ───────────────────────────────────────────
+    # SLO: p95 latency < 500ms for API endpoints
+    - name: orbital.slo.latency
+      rules:
+        - alert: DjangoHighP95Latency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, view) (
+                rate(django_http_requests_latency_seconds_bucket{namespace="orbital"}[5m])
+              )
+            ) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            team:     platform
+          annotations:
+            summary:     "Django p95 latency above 500ms"
+            description: >
+              p95 latency for {{ $labels.view }} is {{ $value | humanizeDuration }}.
+              SLO target is < 500ms.
+            runbook: "https://github.com/YOUR_USERNAME/orbital/wiki/runbooks/high-latency"
+
+        - alert: DjangoCriticalP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum by (le) (
+                rate(django_http_requests_latency_seconds_bucket{namespace="orbital"}[5m])
+              )
+            ) > 2.0
+          for: 3m
+          labels:
+            severity: critical
+            team:     platform
+          annotations:
+            summary:     "Django p99 latency above 2 seconds"
+            description: "p99 response time is {{ $value | humanizeDuration }}. Users are experiencing severe slowness."
+
+    # ── Pod health ─────────────────────────────────────────────
+    - name: orbital.pods
+      rules:
+        - alert: DjangoPodsNotReady
+          expr: |
+            kube_deployment_status_replicas_ready{
+              namespace="orbital",
+              deployment="orbital"
+            } < 2
+          for: 3m
+          labels:
+            severity: critical
+            team:     platform
+          annotations:
+            summary:     "Fewer than 2 Django pods are ready"
+            description: >
+              Only {{ $value }} pods are ready in the orbital deployment.
+              Below minimum threshold of 2 (PodDisruptionBudget). Check pod logs.
+
+        - alert: DjangoDeploymentReplicasMismatch
+          expr: |
+            kube_deployment_spec_replicas{namespace="orbital", deployment="orbital"}
+            != kube_deployment_status_replicas_ready{namespace="orbital", deployment="orbital"}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary:     "Django deployment replica count mismatch"
+            description: "Expected {{ $value }} replicas but actual ready count differs. Possible pending rollout or crashloop."
+
+        - alert: DjangoContainerOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{
+              namespace="orbital",
+              reason="OOMKilled"
+            } == 1
+          for: 0m
+          labels:
+            severity: critical
+            team:     platform
+          annotations:
+            summary:     "Django container killed by OOM"
+            description: "Pod {{ $labels.pod }} was OOMKilled. Memory limit (512Mi) is too low or there is a memory leak."
+
+    # ── Database ───────────────────────────────────────────────
+    - name: orbital.database
+      rules:
+        - alert: DjangoSlowDBQueries
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (
+                rate(django_db_execute_latency_seconds_bucket{namespace="orbital"}[5m])
+              )
+            ) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary:     "Django database p95 query latency above 100ms"
+            description: "p95 DB query time is {{ $value | humanizeDuration }}. Check for missing indexes or N+1 queries."
+
+    # ── ArgoCD Rollout ─────────────────────────────────────────
+    - name: orbital.rollout
+      rules:
+        - alert: DjangoRolloutDegraded
+          expr: |
+            argo_rollout_phase{
+              namespace="orbital",
+              rollout="orbital",
+              phase!="Healthy"
+            } == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary:     "Django ArgoCD Rollout is not Healthy"
+            description: "Rollout phase is {{ $labels.phase }}. A blue-green deployment may be stuck or have failed analysis."

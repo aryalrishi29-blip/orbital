@@ -1,0 +1,20 @@
+# Annotating the namespace enables automatic Linkerd proxy injection.
+# Every new pod gets a linkerd-proxy sidecar automatically — no per-pod
+# annotation needed, no app code changes required.
+#
+# What the sidecar does:
+#   - Intercepts all inbound/outbound TCP traffic
+#   - Upgrades connections to mTLS transparently
+#   - Reports golden metrics (success rate, latency, RPS) to Linkerd Viz
+#   - Enforces retry and timeout policies defined in ServiceProfiles
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orbital
+  annotations:
+    linkerd.io/inject: enabled   # enables automatic proxy sidecar injection
+  labels:
+    app.kubernetes.io/name:       orbital
+    app.kubernetes.io/managed-by: argocd
+    linkerd.io/extension:         viz    # include in Linkerd Viz dashboard

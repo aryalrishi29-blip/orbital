@@ -1,0 +1,79 @@
+# Alertmanager configuration
+# Deploy as a K8s Secret (alertmanager-kube-prometheus-stack-alertmanager)
+# or set via the Helm values.yaml
+#
+# Routing tree:
+#   critical severity  → PagerDuty (immediate page) + Slack #alerts
+#   warning  severity  → Slack #alerts only
+#   default            → Slack #alerts
+
+global:
+  resolve_timeout:  5m
+  slack_api_url:    "YOUR_SLACK_WEBHOOK_URL"   # ← replace
+
+templates:
+  - /etc/alertmanager/config/*.tmpl
+
+route:
+  receiver:       slack-alerts
+  group_by:       [alertname, namespace, severity]
+  group_wait:     30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts → PagerDuty + Slack, repeat every hour
+    - matchers:
+        - severity = critical
+      receiver:        pagerduty-and-slack
+      repeat_interval: 1h
+      continue: false
+
+    # Warning alerts → Slack only
+    - matchers:
+        - severity = warning
+      receiver:        slack-alerts
+      repeat_interval: 6h
+
+receivers:
+  - name: slack-alerts
+    slack_configs:
+      - channel:        "#alerts"
+        send_resolved:  true
+        username:       "AlertManager"
+        icon_emoji:     ":bell:"
+        title:          '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:*     {{ .Annotations.summary }}
+          *Namespace:* {{ .Labels.namespace }}
+          *Severity:*  {{ .Labels.severity }}
+          *Details:*   {{ .Annotations.description }}
+          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+          {{ end }}
+
+  - name: pagerduty-and-slack
+    pagerduty_configs:
+      - routing_key:  "YOUR_PAGERDUTY_INTEGRATION_KEY"   # ← replace
+        severity:     "critical"
+        description:  '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+        details:
+          namespace:  '{{ .CommonLabels.namespace }}'
+          runbook:    '{{ .CommonAnnotations.runbook }}'
+    slack_configs:
+      - channel:       "#alerts"
+        send_resolved: true
+        title:         '[CRITICAL] {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}
+
+inhibit_rules:
+  # Suppress warning when critical is already firing for the same alert
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: [alertname, namespace]

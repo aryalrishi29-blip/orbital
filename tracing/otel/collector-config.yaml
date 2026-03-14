@@ -1,0 +1,75 @@
+# OpenTelemetry Collector configuration.
+# Deployed as a DaemonSet — one collector pod per node.
+# Receives traces from app pods → batches → forwards to Jaeger.
+#
+# Deploy:
+#   kubectl apply -f tracing/otel/collector-deployment.yaml
+#   kubectl apply -f tracing/otel/jaeger.yaml
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317    # app pods send traces here
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout:           10s
+    send_batch_size:   1024
+    send_batch_max_size: 2048
+
+  # Drop health check and metrics spans — too noisy
+  filter/drop_noise:
+    spans:
+      exclude:
+        match_type: regexp
+        attributes:
+          - key:   http.url
+            value: ".*(health|metrics).*"
+
+  # Enrich spans with K8s pod/node metadata
+  k8sattributes:
+    auth_type: serviceAccount
+    passthrough: false
+    extract:
+      metadata:
+        - k8s.pod.name
+        - k8s.pod.uid
+        - k8s.deployment.name
+        - k8s.namespace.name
+        - k8s.node.name
+      labels:
+        - tag_name: app
+          key:      app
+          from:     pod
+
+  memory_limiter:
+    check_interval:        1s
+    limit_mib:             512
+    spike_limit_mib:       128
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger-collector.tracing.svc.cluster.local:4317
+    tls:
+      insecure: true
+
+  # Also export to Prometheus for span-derived metrics
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  logging:
+    verbosity: basic    # log dropped/errored spans
+
+service:
+  pipelines:
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, filter/drop_noise, k8sattributes, batch]
+      exporters:  [otlp/jaeger, logging]
+
+  telemetry:
+    logs:
+      level: warn

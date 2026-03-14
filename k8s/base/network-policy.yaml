@@ -1,0 +1,96 @@
+# Network policies implement zero-trust at the pod level.
+# By default Kubernetes allows all pod-to-pod traffic.
+# These policies enforce: ingress only from Nginx Ingress controller,
+# egress only to Postgres and DNS.
+
+# ── Deny all ingress by default ───────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: orbital
+spec:
+  podSelector: {}          # applies to ALL pods in the namespace
+  policyTypes:
+    - Ingress
+
+---
+# ── Allow ingress only from Nginx Ingress controller ──────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+  namespace: orbital
+spec:
+  podSelector:
+    matchLabels:
+      app: orbital
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - port:     8000
+          protocol: TCP
+
+---
+# ── Allow ingress from Prometheus scraper ─────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: orbital
+spec:
+  podSelector:
+    matchLabels:
+      app: orbital
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port:     8000
+          protocol: TCP
+
+---
+# ── Restrict egress: Postgres + DNS only ──────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-postgres-dns
+  namespace: orbital
+spec:
+  podSelector:
+    matchLabels:
+      app: orbital
+  policyTypes:
+    - Egress
+  egress:
+    # DNS resolution (CoreDNS)
+    - ports:
+        - port:     53
+          protocol: UDP
+        - port:     53
+          protocol: TCP
+
+    # Postgres (RDS endpoint — all external IPs on port 5432)
+    - ports:
+        - port:     5432
+          protocol: TCP
+
+    # Allow HTTPS for ECR image pulls during init containers
+    - ports:
+        - port:     443
+          protocol: TCP

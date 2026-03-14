@@ -1,0 +1,5 @@
+app/myapp/migrations/
+app/staticfiles/
+app/htmlcov/
+venv/
+.venv/

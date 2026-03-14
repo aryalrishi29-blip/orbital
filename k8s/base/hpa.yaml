@@ -1,0 +1,38 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orbital
+  namespace: orbital
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind:       Deployment
+    name:       orbital
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type:               Utilization
+          averageUtilization: 70    # scale up when avg CPU > 70%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type:               Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60     # wait 60s before scaling up again
+      policies:
+        - type:          Pods
+          value:         2
+          periodSeconds: 60              # add max 2 pods per minute
+    scaleDown:
+      stabilizationWindowSeconds: 300    # wait 5 min before scaling down (avoid flapping)
+      policies:
+        - type:          Pods
+          value:         1
+          periodSeconds: 120             # remove max 1 pod per 2 minutes

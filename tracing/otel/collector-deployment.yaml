@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracing
+  labels:
+    linkerd.io/inject: enabled
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: tracing
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      filter/drop_noise:
+        spans:
+          exclude:
+            match_type: regexp
+            attributes:
+              - key: http.url
+                value: ".*(health|metrics).*"
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger-collector.tracing.svc.cluster.local:4317
+        tls:
+          insecure: true
+      logging:
+        verbosity: basic
+    service:
+      pipelines:
+        traces:
+          receivers:  [otlp]
+          processors: [memory_limiter, filter/drop_noise, batch]
+          exporters:  [otlp/jaeger, logging]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: otel-collector
+  namespace: tracing
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      serviceAccountName: otel-collector
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.96.0
+          args: ["--config=/etc/otel/config.yaml"]
+          ports:
+            - containerPort: 4317   # gRPC
+              name: otlp-grpc
+            - containerPort: 4318   # HTTP
+              name: otlp-http
+          resources:
+            requests: { cpu: 50m,  memory: 128Mi }
+            limits:   { cpu: 200m, memory: 512Mi }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem:   true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: tracing
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: tracing

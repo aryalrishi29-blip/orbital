@@ -1,0 +1,128 @@
+name: Load Test
+
+# Runs after every production deploy to validate SLOs under load.
+# Also runs on a schedule for nightly soak tests.
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"    # nightly soak test at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "k6 scenario to run"
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, load, stress, soak]
+      base_url:
+        description: "Target URL"
+        required: false
+        default: ""
+
+jobs:
+  load-test:
+    name: "k6 load test (${{ github.event.inputs.scenario || 'smoke' }})"
+    runs-on: ubuntu-latest
+    # Only run if the triggering CI/CD pipeline succeeded
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -q
+          sudo apt-get install -q k6
+
+      - name: Determine target URL and scenario
+        id: config
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
+
+          # Use input URL, or staging for scheduled runs, or production for post-deploy
+          if [ -n "${{ github.event.inputs.base_url }}" ]; then
+            URL="${{ github.event.inputs.base_url }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            SCENARIO="soak"
+            URL="${{ secrets.STAGING_URL }}"
+          else
+            URL="${{ secrets.PRODUCTION_URL }}"
+          fi
+
+          echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+          echo "url=$URL"           >> "$GITHUB_OUTPUT"
+          echo "Scenario: $SCENARIO | URL: $URL"
+
+      - name: Run k6 load test
+        env:
+          BASE_URL: ${{ steps.config.outputs.url }}
+          SCENARIO: ${{ steps.config.outputs.scenario }}
+        run: |
+          k6 run \
+            -e BASE_URL="$BASE_URL" \
+            -e SCENARIO="$SCENARIO" \
+            --out json=load-test-results.json \
+            load-testing/k6/scripts/api-load-test.js
+
+      - name: Parse and summarise results
+        if: always()
+        run: |
+          python3 << 'PYEOF'
+          import json, sys
+
+          results = {}
+          with open("load-test-results.json") as f:
+              for line in f:
+                  try:
+                      obj = json.loads(line)
+                      if obj.get("type") == "Point":
+                          m = obj["metric"]
+                          v = obj["data"]["value"]
+                          results.setdefault(m, []).append(v)
+                  except Exception:
+                      pass
+
+          def pct(values, p):
+              s = sorted(values)
+              idx = int(len(s) * p / 100)
+              return s[min(idx, len(s)-1)]
+
+          durations = results.get("http_req_duration", [])
+          errors    = results.get("http_req_failed",   [])
+
+          p95 = pct(durations, 95) if durations else 0
+          p99 = pct(durations, 99) if durations else 0
+          err = (sum(errors) / len(errors) * 100) if errors else 0
+
+          print(f"p95 latency:  {p95:.1f}ms  (SLO: < 500ms)  {'PASS' if p95 < 500 else 'FAIL'}")
+          print(f"p99 latency:  {p99:.1f}ms  (SLO: < 1500ms) {'PASS' if p99 < 1500 else 'FAIL'}")
+          print(f"Error rate:   {err:.2f}%  (SLO: < 1%)     {'PASS' if err < 1 else 'FAIL'}")
+          print(f"Total reqs:   {len(durations)}")
+
+          with open(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout"), "a") as s:
+              s.write(f"### Load test results\n")
+              s.write(f"| Metric | Value | SLO | Status |\n|---|---|---|---|\n")
+              s.write(f"| p95 latency | {p95:.0f}ms | < 500ms | {'PASS' if p95 < 500 else 'FAIL'} |\n")
+              s.write(f"| p99 latency | {p99:.0f}ms | < 1500ms | {'PASS' if p99 < 1500 else 'FAIL'} |\n")
+              s.write(f"| Error rate | {err:.2f}% | < 1% | {'PASS' if err < 1 else 'FAIL'} |\n")
+              s.write(f"| Total requests | {len(durations)} | — | — |\n")
+          PYEOF
+        env:
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-load-test-${{ steps.config.outputs.scenario }}-${{ github.run_id }}
+          path: load-test-results.json
+          retention-days: 30

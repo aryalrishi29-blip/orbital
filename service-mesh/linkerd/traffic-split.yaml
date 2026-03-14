@@ -1,0 +1,25 @@
+# TrafficSplit (SMI spec) — used during blue-green rollouts to shift
+# traffic weight gradually between the active (blue) and preview (green) service.
+#
+# During a normal blue-green rollout ArgoCD Rollouts handles this.
+# This manifest demonstrates how to do manual weighted splits —
+# useful for canary validation or A/B testing scenarios.
+#
+# Apply with:
+#   kubectl apply -f service-mesh/linkerd/traffic-split.yaml
+# Shift 20% to green:
+#   kubectl patch trafficsplit orbital-split -n orbital \
+#     --type merge -p '{"spec":{"backends":[{"service":"orbital","weight":"80"},{"service":"orbital-preview","weight":"20"}]}}'
+
+apiVersion: split.smi-spec.io/v1alpha2
+kind: TrafficSplit
+metadata:
+  name: orbital-split
+  namespace: orbital
+spec:
+  service: orbital            # the root service clients connect to
+  backends:
+    - service: orbital        # blue (active)
+      weight: "100"
+    - service: orbital-preview  # green (preview)
+      weight: "0"             # set > 0 to start shifting traffic

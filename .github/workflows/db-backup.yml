@@ -1,0 +1,80 @@
+name: Database Backup
+
+# Runs every night at 02:00 UTC.
+# Dumps the Postgres database, compresses it, and uploads to S3.
+# Retains 30 days of backups via an S3 lifecycle rule (set in Terraform).
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC daily
+  workflow_dispatch:        # also triggerable manually from the Actions tab
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  backup:
+    name: "Postgres → S3 backup"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Run pg_dump on EC2 and upload to S3
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DB_NAME:     ${{ secrets.DB_NAME }}
+          DB_USER:     ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST:     ${{ secrets.DB_HOST }}
+          DB_PORT:     "5432"
+          S3_BUCKET:   ${{ secrets.BACKUP_S3_BUCKET }}
+          AWS_REGION:  ${{ env.AWS_REGION }}
+        with:
+          host:     ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key:      ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          envs:     DB_NAME,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,S3_BUCKET,AWS_REGION
+          script: |
+            set -euo pipefail
+
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+            FILENAME="backup-${TIMESTAMP}.sql.gz"
+            TMPFILE="/tmp/${FILENAME}"
+
+            echo "📦 Dumping database ${DB_NAME}…"
+            PGPASSWORD="$DB_PASSWORD" pg_dump \
+              --host="$DB_HOST" \
+              --port="$DB_PORT" \
+              --username="$DB_USER" \
+              --dbname="$DB_NAME" \
+              --format=plain \
+              --no-password \
+            | gzip > "$TMPFILE"
+
+            SIZE=$(du -sh "$TMPFILE" | cut -f1)
+            echo "  Compressed size: $SIZE"
+
+            echo "☁️  Uploading to s3://${S3_BUCKET}/backups/${FILENAME}…"
+            aws s3 cp "$TMPFILE" "s3://${S3_BUCKET}/backups/${FILENAME}" \
+              --region "$AWS_REGION" \
+              --storage-class STANDARD_IA
+
+            rm -f "$TMPFILE"
+            echo "✅ Backup complete: s3://${S3_BUCKET}/backups/${FILENAME} (${SIZE})"
+
+      - name: Log backup to summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Backup succeeded" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Uploaded to: \`s3://${{ secrets.BACKUP_S3_BUCKET }}/backups/\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Triggered at: $(date -u)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ❌ Backup failed — check SSH step logs" >> "$GITHUB_STEP_SUMMARY"
+          fi

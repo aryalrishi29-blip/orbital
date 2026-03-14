@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orbital-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL:        https://github.com/YOUR_USERNAME/orbital.git
+    targetRevision: develop          # staging tracks the develop branch
+    path:           k8s/overlays/staging
+
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: orbital-staging
+
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 2
+      backoff:
+        duration:    5s
+        factor:      2
+        maxDuration: 1m
+
+  ignoreDifferences:
+    - group:     apps
+      kind:      Deployment
+      jsonPointers:
+        - /spec/template/spec/containers/0/image
+
+  info:
+    - name:  environment
+      value: staging

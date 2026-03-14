@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orbital-production
+  namespace: argocd
+  finalizers:
+    # Deleting the Application also removes all deployed K8s resources
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Notify Slack on sync events (requires argocd-notifications)
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deploys
+    notifications.argoproj.io/subscribe.on-sync-failed.slack:    deploys
+spec:
+  project: default
+
+  source:
+    # Point at YOUR repository
+    repoURL:        https://github.com/YOUR_USERNAME/orbital.git
+    targetRevision: main
+    path:           k8s/overlays/production
+
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: orbital
+
+  syncPolicy:
+    automated:
+      prune:    true    # remove K8s resources deleted from Git
+      selfHeal: true    # revert manual kubectl changes (drift correction)
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration:    5s
+        factor:      2
+        maxDuration: 3m
+
+  # Ignore image tag diffs — CI updates the tag, ArgoCD shouldn't revert it
+  ignoreDifferences:
+    - group:     apps
+      kind:      Deployment
+      jsonPointers:
+        - /spec/template/spec/containers/0/image
+        - /spec/replicas          # HPA manages this at runtime
+
+  # Health checks — ArgoCD waits for these before marking sync complete
+  info:
+    - name:  environment
+      value: production
+    - name:  owner
+      value: platform-team

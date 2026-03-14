@@ -1,0 +1,66 @@
+# Service account for the Django app pods.
+# IRSA (IAM Roles for Service Accounts) annotation is set here;
+# the IAM role ARN is patched in by the Kustomize overlay.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orbital
+  namespace: orbital
+  annotations:
+    # Filled in by Kustomize overlay once Terraform outputs the IRSA role ARN
+    eks.amazonaws.com/role-arn: REPLACE_WITH_IRSA_ROLE_ARN
+  labels:
+    app: orbital
+automountServiceAccountToken: false   # opt-in only — no default token in pods
+---
+# Role: minimum permissions needed by the app at runtime.
+# Pods should never need to call the K8s API in normal operation.
+# This role is intentionally nearly empty.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: orbital
+  namespace: orbital
+rules:
+  # Allow reading its own ConfigMaps (e.g. for feature flags)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["orbital-config"]
+    verbs: ["get", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orbital
+  namespace: orbital
+subjects:
+  - kind:      ServiceAccount
+    name:      orbital
+    namespace: orbital
+roleRef:
+  kind:     Role
+  name:     orbital
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for ArgoCD to manage resources in the orbital namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-orbital-manager
+rules:
+  - apiGroups: ["apps", "argoproj.io", "autoscaling", "policy", "networking.k8s.io", ""]
+    resources:
+      - deployments
+      - replicasets
+      - rollouts
+      - analysistemplates
+      - horizontalpodautoscalers
+      - poddisruptionbudgets
+      - ingresses
+      - services
+      - serviceaccounts
+      - configmaps
+      - namespaces
+      - pods
+      - pods/log
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

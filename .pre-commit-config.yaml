@@ -1,0 +1,85 @@
+# Pre-commit hooks — run automatically before every git commit.
+#
+# Install:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run manually against all files:
+#   pre-commit run --all-files
+
+repos:
+  # ── General file hygiene ────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]     # force all changes through PRs
+
+  # ── Python formatting ───────────────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        files: ^app/
+
+  # ── Import ordering ─────────────────────────────────────────
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort
+        files: ^app/
+        args: [--profile, black]
+
+  # ── Python linting ──────────────────────────────────────────
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        files: ^app/
+        args: [--max-line-length=100, --exclude=app/myapp/migrations]
+
+  # ── Security: detect secrets ────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+
+  # ── Dockerfile linting ──────────────────────────────────────
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        entry: hadolint
+        files: Dockerfile$
+        args: [--failure-threshold, warning]
+
+  # ── Kubernetes YAML validation ──────────────────────────────
+  - repo: https://github.com/syntasso/pre-commit-kubeconform
+    rev: v0.1.2
+    hooks:
+      - id: kubeconform
+        files: ^k8s/
+        args:
+          - --strict
+          - --kubernetes-version=1.29.0
+          - --schema-location=default
+          - --schema-location=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+
+  # ── Terraform formatting ────────────────────────────────────
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.88.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate

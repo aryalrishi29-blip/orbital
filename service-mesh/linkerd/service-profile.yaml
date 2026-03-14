@@ -1,0 +1,71 @@
+# ServiceProfile — tells Linkerd about the routes exposed by the orbital service.
+# Linkerd uses this to:
+#   1. Report per-route success rates in Viz (not just per-pod)
+#   2. Enable retries on safe (idempotent) routes
+#   3. Enforce per-route timeouts before the request reaches Django
+#
+# Without a ServiceProfile, Linkerd tracks metrics per-connection.
+# With it, you get per-endpoint golden metrics: exactly what SRE teams use.
+
+apiVersion: linkerd.io/v1alpha2
+kind: ServiceProfile
+metadata:
+  name: orbital.orbital.svc.cluster.local
+  namespace: orbital
+spec:
+  routes:
+    - name: GET /health/
+      condition:
+        method: GET
+        pathRegex: /health/
+      # Health checks should never be retried — if the pod is unhealthy, fail fast
+      isRetryable: false
+      timeout: 2s
+
+    - name: GET /metrics/
+      condition:
+        method: GET
+        pathRegex: /metrics/
+      isRetryable: false
+      timeout: 5s
+
+    - name: GET /api/articles/
+      condition:
+        method: GET
+        pathRegex: /api/articles/
+      # Safe to retry — GET is idempotent
+      isRetryable: true
+      timeout: 5s
+      retryBudget:
+        retryRatio:          0.2     # retry up to 20% of requests
+        minRetriesPerSecond: 5
+        ttl:                 120s
+
+    - name: GET /api/articles/{id}/
+      condition:
+        method: GET
+        pathRegex: /api/articles/[0-9]+/
+      isRetryable: true
+      timeout: 5s
+
+    - name: POST /api/articles/
+      condition:
+        method: POST
+        pathRegex: /api/articles/
+      # POST is NOT idempotent — never retry writes
+      isRetryable: false
+      timeout: 10s
+
+    - name: PATCH /api/articles/{id}/
+      condition:
+        method: PATCH
+        pathRegex: /api/articles/[0-9]+/
+      isRetryable: false
+      timeout: 10s
+
+    - name: DELETE /api/articles/{id}/
+      condition:
+        method: DELETE
+        pathRegex: /api/articles/[0-9]+/
+      isRetryable: false
+      timeout: 5s

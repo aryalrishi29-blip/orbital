@@ -1,0 +1,156 @@
+# ArgoCD Rollout — replaces the standard Deployment for blue-green deployments.
+# Install ArgoCD Rollouts controller first:
+#   bash gitops/argocd/install-argocd.sh
+#
+# How it works:
+#   1. CI pushes new image tag → ArgoCD detects change → creates new ReplicaSet (green)
+#   2. Green pods boot and pass readiness probes
+#   3. Analysis runs (HTTP success rate check against preview service)
+#   4. If analysis passes → traffic switches from blue to green instantly
+#   5. Blue ReplicaSet kept for scaleDownDelaySeconds, then deleted
+#   6. If analysis fails → automatic rollback, blue keeps serving
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: orbital
+  namespace: orbital
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: orbital
+  template:
+    metadata:
+      labels:
+        app: orbital
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path:   "/metrics/"
+        prometheus.io/port:   "8000"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser:    1000
+        runAsGroup:   1000
+        fsGroup:      1000
+
+      initContainers:
+        - name: run-migrations
+          image: REPLACE_WITH_ECR_IMAGE
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - secretRef:
+                name: orbital-secrets
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+
+      containers:
+        - name: orbital
+          image: REPLACE_WITH_ECR_IMAGE
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - secretRef:
+                name: orbital-secrets
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+
+          startupProbe:
+            httpGet: { path: /health/, port: 8000 }
+            failureThreshold: 10
+            periodSeconds:    3
+
+          livenessProbe:
+            httpGet: { path: /health/, port: 8000 }
+            periodSeconds:    15
+            failureThreshold: 3
+            timeoutSeconds:   5
+
+          readinessProbe:
+            httpGet: { path: /health/, port: 8000 }
+            periodSeconds:    10
+            failureThreshold: 2
+            timeoutSeconds:   3
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem:   true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+
+      terminationGracePeriodSeconds: 30
+
+  # ── Blue-green strategy ─────────────────────────────────────
+  strategy:
+    blueGreen:
+      # Active service receives 100% of production traffic (blue)
+      activeService: orbital
+
+      # Preview service routes to the new version (green) for testing
+      previewService: orbital-preview
+
+      # Keep green fully scaled before switching traffic
+      previewReplicaCount: 3
+
+      # Run automated analysis before promoting green → active
+      autoPromotionEnabled: false    # set true for fully automated promotion
+
+      # Reference the AnalysisTemplate below
+      prePromotionAnalysis:
+        templates:
+          - templateName: success-rate
+        args:
+          - name:  service-name
+            value: orbital-preview
+
+      # After traffic switch, keep blue pods for 5 min (instant rollback window)
+      scaleDownDelaySeconds: 300
+
+      # Abort rollout if analysis fails
+      postPromotionAnalysis:
+        templates:
+          - templateName: success-rate
+        args:
+          - name:  service-name
+            value: orbital
+
+---
+# AnalysisTemplate: query Prometheus for HTTP success rate
+# Rollout is promoted only if error rate < 1% over a 5-minute window.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: orbital
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name:             success-rate
+      interval:         30s
+      count:            10           # run 10 times (5 minutes total)
+      successCondition: result[0] >= 0.99
+      failureLimit:     2            # abort after 2 consecutive failures
+      provider:
+        prometheus:
+          address: http://prometheus-server.observability.svc.cluster.local
+          query: |
+            sum(rate(
+              django_http_requests_total{service="{{args.service-name}}",status!~"5.."}[2m]
+            )) /
+            sum(rate(
+              django_http_requests_total{service="{{args.service-name}}"}[2m]
+            ))

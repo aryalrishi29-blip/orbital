@@ -1,0 +1,220 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION:      us-east-1
+  ECR_REPOSITORY:  orbital
+  IMAGE_TAG:       ${{ github.sha }}
+
+permissions:
+  contents:        write
+  security-events: write
+  id-token:        write
+  actions:         read
+
+jobs:
+
+  test:
+    name: "Test (Python 3.11 + Postgres 15)"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB:       test_myapp
+          POSTGRES_USER:     postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: app/requirements-dev.txt
+      - run: cd app && pip install -r requirements-dev.txt
+      - run: flake8 app/ --max-line-length=100 --exclude=app/myapp/migrations,app/staticfiles
+      - run: black --check --diff app/
+      - name: Migrate + test + coverage
+        env:
+          DJANGO_SETTINGS_MODULE: myapp.settings
+          DJANGO_SECRET_KEY:      ci-test-key
+          DB_NAME:                test_myapp
+          DB_USER:                postgres
+          DB_PASSWORD:            postgres
+          DB_HOST:                localhost
+          DB_PORT:                "5432"
+        run: |
+          cd app
+          python manage.py migrate --noinput
+          coverage run manage.py test myapp --verbosity=2
+          coverage report --fail-under=80
+          coverage xml -o coverage.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: app/coverage.xml
+          retention-days: 7
+
+  security:
+    name: "Security scan"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency audit (pip-audit)
+        run: pip install pip-audit && cd app && pip-audit -r requirements.txt --desc
+      - name: SAST (bandit)
+        run: pip install bandit && bandit -r app/myapp/ -ll --exclude app/myapp/tests.py
+      - name: Secret scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dockerfile lint (Hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/Dockerfile
+          failure-threshold: warning
+
+  build-and-push:
+    name: "Build → Scan → Sign → Push (ECR)"
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      image_uri: ${{ steps.push.outputs.image_uri }}
+      registry:  ${{ steps.login-ecr.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" 2>/dev/null \
+          || aws ecr create-repository \
+            --repository-name "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+      - name: Build, tag, and push image
+        id: push
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_URI="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          LATEST_URI="$REGISTRY/$ECR_REPOSITORY:latest"
+          docker buildx build \
+            --platform linux/amd64 \
+            --target production \
+            --tag  "$IMAGE_URI" \
+            --tag  "$LATEST_URI" \
+            --cache-from "type=registry,ref=$LATEST_URI" \
+            --cache-to   "type=inline" \
+            --push \
+            ./app
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+      - name: Trivy container scan (block on CRITICAL)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref:      ${{ steps.push.outputs.image_uri }}
+          format:         sarif
+          output:         trivy.sarif
+          severity:       CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code:      1
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy.sarif
+          category:   trivy
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign and verify image
+        env:
+          IMAGE: ${{ steps.push.outputs.image_uri }}
+        run: |
+          cosign sign --yes "$IMAGE"
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE"
+
+  update-manifests:
+    name: "Update K8s image tag (GitOps)"
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Update image tag in Kustomize overlay
+        env:
+          REGISTRY:  ${{ needs.build-and-push.outputs.registry }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          cd k8s/overlays/production
+          sed -i "s|newTag:.*|newTag: ${IMAGE_TAG}|g" kustomization.yaml
+          sed -i "s|newName:.*|newName: ${REGISTRY}/${{ env.ECR_REPOSITORY }}|g" kustomization.yaml
+          echo "Updated to tag: ${IMAGE_TAG}"
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/production/kustomization.yaml
+          git commit -m "ci: deploy ${IMAGE_TAG::7} to production [skip ci]
+
+          Image: ${{ needs.build-and-push.outputs.image_uri }}
+          Actor: ${{ github.actor }}" \
+          || echo "No manifest changes"
+          git push
+      - name: Summary
+        run: |
+          echo "### Deployment triggered" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image**: \`${{ needs.build-and-push.outputs.image_uri }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Strategy**: Blue-Green via ArgoCD Rollouts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Auto-promote**: when AnalysisTemplate reports >= 99% success rate" >> "$GITHUB_STEP_SUMMARY"
+
+  validate-deploy:
+    name: "Post-deploy smoke test"
+    runs-on: ubuntu-latest
+    needs: update-manifests
+    environment: production
+    steps:
+      - name: Wait for ArgoCD sync (3 min)
+        run: sleep 180
+      - name: Health check
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          for i in $(seq 1 5); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/health/")
+            [ "$STATUS" = "200" ] && echo "Health check passed" && break
+            echo "Attempt $i returned $STATUS — retrying in 30s..."
+            sleep 30
+            [ "$i" -eq 5 ] && echo "Smoke test failed" && exit 1
+          done
+      - name: API smoke test
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/articles/")
+          [ "$STATUS" = "200" ] || (echo "API returned $STATUS" && exit 1)
+          echo "API smoke test passed"

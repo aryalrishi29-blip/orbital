@@ -1,0 +1,112 @@
+# Backstage Scaffolder Template
+#
+# This template lets any engineer spin up a new service that inherits
+# all of Orbital's platform patterns: CI/CD, GitOps, observability,
+# security scanning — with a single form in the Backstage UI.
+#
+# Register in Backstage app-config.yaml under catalog.locations.
+
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: orbital-service-template
+  title: New Orbital Platform Service
+  description: >
+    Spin up a production-ready service with CI/CD, GitOps, Kubernetes manifests,
+    Prometheus metrics, distributed tracing, and security scanning — pre-wired.
+  tags:
+    - python
+    - django
+    - kubernetes
+    - gitops
+    - recommended
+
+spec:
+  owner:    platform-team
+  type:     service
+
+  parameters:
+    - title: Service details
+      required: [name, description, owner]
+      properties:
+        name:
+          title:       Service name
+          type:        string
+          description: Lowercase, hyphen-separated (e.g. payments-api)
+          pattern:     "^[a-z][a-z0-9-]{2,40}$"
+          ui:options:
+            rows: 1
+
+        description:
+          title: Description
+          type:  string
+
+        owner:
+          title:       Team owner
+          type:        string
+          description: GitHub team slug (e.g. platform-team)
+
+    - title: Infrastructure
+      required: [environment, region]
+      properties:
+        environment:
+          title:   Target environment
+          type:    string
+          default: staging
+          enum:    [staging, production]
+
+        region:
+          title:   AWS region
+          type:    string
+          default: us-east-1
+          enum:    [us-east-1, eu-west-1, ap-southeast-1]
+
+        replicas:
+          title:   Initial replica count
+          type:    integer
+          default: 2
+          minimum: 1
+          maximum: 10
+
+  steps:
+    - id:     fetch-base
+      name:   Fetch Orbital base template
+      action: fetch:template
+      input:
+        url:    https://github.com/YOUR_USERNAME/orbital/tree/main/
+        values:
+          name:        ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner:       ${{ parameters.owner }}
+          environment: ${{ parameters.environment }}
+          region:      ${{ parameters.region }}
+          replicas:    ${{ parameters.replicas }}
+
+    - id:     publish
+      name:   Create GitHub repository
+      action: publish:github
+      input:
+        allowedHosts: [github.com]
+        description:  ${{ parameters.description }}
+        repoUrl:      github.com?repo=${{ parameters.name }}&owner=YOUR_ORG
+        defaultBranch: main
+        topics:
+          - kubernetes
+          - gitops
+          - django
+          - orbital-platform
+
+    - id:     register
+      name:   Register in Backstage catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /platform/backstage/catalog/orbital-component.yaml
+
+  output:
+    links:
+      - title: GitHub Repository
+        url:   ${{ steps.publish.output.remoteUrl }}
+      - title: Open in Backstage
+        icon:  catalog
+        entityRef: ${{ steps.register.output.entityRef }}

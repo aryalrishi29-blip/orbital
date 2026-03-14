@@ -1,0 +1,49 @@
+name: FinOps Weekly Cost Report
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"     # Every Monday 08:00 UTC
+  workflow_dispatch:         # Manual trigger from Actions tab
+
+jobs:
+  cost-report:
+    name: "Generate weekly cost report"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            us-east-1
+
+      - name: Port-forward Kubecost and run report
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          host:     ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key:      ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          envs:     SLACK_WEBHOOK
+          script: |
+            # Port-forward Kubecost from EKS to localhost
+            kubectl port-forward svc/kubecost-cost-analyzer \
+              -n kubecost 9090:9090 &
+            PF_PID=$!
+            sleep 5
+
+            KUBECOST_URL=http://localhost:9090 \
+            SLACK_WEBHOOK="$SLACK_WEBHOOK" \
+            bash finops/reports/cost-report.sh
+
+            kill $PF_PID 2>/dev/null || true
+            echo "Cost report complete"
+
+      - name: Summary
+        run: |
+          echo "### FinOps report dispatched" >> "$GITHUB_STEP_SUMMARY"
+          echo "Cost summary posted to Slack #finops channel." >> "$GITHUB_STEP_SUMMARY"
+          echo "View details: [Kubecost Dashboard](http://kubecost.your-domain.com)" >> "$GITHUB_STEP_SUMMARY"

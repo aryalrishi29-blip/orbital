@@ -1,0 +1,10 @@
+-r requirements.txt
+
+# Testing
+coverage==7.4.1
+
+# Linting & formatting
+flake8==7.0.0
+black==24.1.1
+isort==5.13.2
+bandit==1.7.7

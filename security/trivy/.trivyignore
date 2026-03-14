@@ -1,0 +1,10 @@
+# Trivy vulnerability ignore file
+# Format: CVE-ID  # reason — reviewed by — date
+#
+# Add entries here ONLY after security review confirms the CVE is either:
+#   a) a false positive
+#   b) not exploitable in this deployment context
+#   c) has no available fix and is accepted risk
+#
+# Example:
+# CVE-2023-12345  # false positive in Alpine base image — no network exposure — reviewed 2025-01-01

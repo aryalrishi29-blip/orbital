@@ -1,0 +1,197 @@
+# Backstage Software Catalog — Component definition for Orbital.
+#
+# Backstage is an open-source developer platform (by Spotify, CNCF) that gives
+# every service a home page with: docs, runbooks, CI/CD status, on-call info,
+# cost data, and dependency graph.
+#
+# Register this in Backstage by adding to app-config.yaml:
+#   catalog:
+#     locations:
+#       - type: url
+#         target: https://github.com/YOUR_USERNAME/orbital/blob/main/platform/backstage/catalog/orbital-component.yaml
+
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: orbital
+  title: Orbital Platform
+  description: Cloud-native delivery platform — CI/CD, GitOps, blue-green, observability
+  tags:
+    - platform
+    - cicd
+    - kubernetes
+    - gitops
+  links:
+    - url:   https://github.com/YOUR_USERNAME/orbital
+      title: GitHub Repository
+      icon:  github
+    - url:   https://argocd.your-domain.com
+      title: ArgoCD
+      icon:  dashboard
+    - url:   https://grafana.your-domain.com
+      title: Grafana
+      icon:  dashboard
+spec:
+  owner: platform-team
+  domain: platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: orbital-api
+  title: Orbital API
+  description: >
+    Production-grade REST API built with Django, deployed on EKS via ArgoCD GitOps.
+    Implements blue-green deployments with Prometheus-driven promotion gates.
+  annotations:
+    # GitHub integration — shows recent commits, PRs, CI status
+    github.com/project-slug: YOUR_USERNAME/orbital
+
+    # ArgoCD integration — shows sync status and deployment history
+    argocd/app-name: orbital-production
+
+    # Prometheus/Grafana — links to the service dashboard
+    grafana/dashboard-selector: "orbital"
+    grafana/alert-label-selector: "service=orbital"
+
+    # PagerDuty integration — shows on-call schedule
+    # pagerduty.com/service-id: YOUR_PD_SERVICE_ID
+
+    # Kubernetes integration — shows pod health inline
+    backstage.io/kubernetes-id:        orbital
+    backstage.io/kubernetes-namespace: orbital
+
+    # Links to runbooks
+    backstage.io/techdocs-ref: dir:.
+
+  tags:
+    - python
+    - django
+    - kubernetes
+    - rest-api
+    - gitops
+
+  links:
+    - url:   https://api.your-domain.com
+      title: Production API
+      icon:  web
+    - url:   https://api.your-domain.com/health/
+      title: Health check
+      icon:  dashboard
+    - url:   https://grafana.your-domain.com/d/orbital-overview
+      title: Grafana dashboard
+      icon:  dashboard
+    - url:   https://jaeger.your-domain.com
+      title: Jaeger traces
+      icon:  dashboard
+    - url:   https://github.com/YOUR_USERNAME/orbital/blob/main/docs/runbooks/high-error-rate.md
+      title: Runbook — high error rate
+      icon:  help
+
+spec:
+  type:      service
+  lifecycle: production
+  owner:     platform-team
+  system:    orbital
+
+  # Dependency graph — what this service consumes
+  dependsOn:
+    - resource:default/orbital-postgres-rds
+    - component:default/argocd
+    - component:default/prometheus
+
+  # What API this service provides (links to OpenAPI spec if you add one)
+  providesApis:
+    - orbital-rest-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: orbital-postgres-rds
+  title: Orbital PostgreSQL (RDS)
+  description: Amazon RDS PostgreSQL instance backing the Orbital API
+  tags:
+    - database
+    - postgresql
+    - aws-rds
+spec:
+  type:      database
+  owner:     platform-team
+  system:    orbital
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: orbital-rest-api
+  title: Orbital REST API
+  description: CRUD API for articles with health, metrics, and observability endpoints
+  tags:
+    - rest
+    - http
+spec:
+  type:      openapi
+  lifecycle: production
+  owner:     platform-team
+  system:    orbital
+  definition: |
+    openapi: "3.0.3"
+    info:
+      title: Orbital Platform API
+      version: "1.0.0"
+      description: Production-grade REST API — Django on Kubernetes
+    servers:
+      - url: https://api.your-domain.com
+    paths:
+      /health/:
+        get:
+          summary: Health check
+          responses:
+            "200":
+              description: Service is healthy
+      /metrics/:
+        get:
+          summary: Prometheus metrics
+          responses:
+            "200":
+              description: Prometheus text format metrics
+      /api/articles/:
+        get:
+          summary: List published articles
+          responses:
+            "200":
+              description: Array of articles
+        post:
+          summary: Create article
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [title, body]
+                  properties:
+                    title: { type: string }
+                    body:  { type: string }
+          responses:
+            "201":
+              description: Article created
+      /api/articles/{id}/:
+        parameters:
+          - name: id
+            in:   path
+            required: true
+            schema:
+              type: integer
+        get:
+          summary: Get article
+          responses:
+            "200": { description: Article }
+            "404": { description: Not found }
+        patch:
+          summary: Publish article
+          responses:
+            "200": { description: Published }
+        delete:
+          summary: Delete article
+          responses:
+            "204": { description: Deleted }
