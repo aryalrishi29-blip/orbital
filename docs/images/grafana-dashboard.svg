@@ -1,0 +1,238 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" xmlns="http://www.w3.org/2000/svg" font-family="Inter,ui-sans-serif,system-ui,sans-serif">
+  <rect width="1200" height="720" fill="#111217"/>
+
+  <!-- Top nav bar -->
+  <rect width="1200" height="40" fill="#161719"/>
+  <rect x="0" y="39" width="1200" height="1" fill="#2d3035"/>
+  <text x="16" y="25" font-size="14" font-weight="600" fill="#e0e0e0">Orbital — Platform Overview</text>
+  <text x="900" y="25" font-size="12" fill="#6e6e73">Last 1 hour</text>
+  <rect x="960" y="11" width="80" height="18" rx="3" fill="#1f2128" stroke="#3d4050" stroke-width="0.5"/>
+  <text x="1000" y="23" text-anchor="middle" font-size="11" fill="#c8c8cd">Last 1h ▾</text>
+  <rect x="1058" y="11" width="60" height="18" rx="3" fill="#1f2128" stroke="#3d4050" stroke-width="0.5"/>
+  <text x="1088" y="23" text-anchor="middle" font-size="11" fill="#c8c8cd">⟳ 30s</text>
+  <rect x="1128" y="11" width="60" height="18" rx="3" fill="#2d7d4a" stroke="#2d7d4a" stroke-width="0.5"/>
+  <text x="1158" y="23" text-anchor="middle" font-size="11" fill="#fff">Save</text>
+
+  <!-- Left sidebar -->
+  <rect width="48" height="720" fill="#161719"/>
+  <rect x="47" y="0" width="1" height="720" fill="#2d3035"/>
+  <rect x="8" y="56" width="32" height="32" rx="4" fill="#1f2128"/>
+  <text x="24" y="76" text-anchor="middle" font-size="16" fill="#6e6e73">⊞</text>
+  <rect x="8" y="96" width="32" height="32" rx="4" fill="#1f2128"/>
+  <text x="24" y="116" text-anchor="middle" font-size="16" fill="#6e6e73">★</text>
+  <rect x="8" y="136" width="32" height="32" rx="4" fill="#1f2128"/>
+  <text x="24" y="156" text-anchor="middle" font-size="16" fill="#6e6e73">🔔</text>
+
+  <!-- ─── STAT CARDS row ─── -->
+  <!-- Card 1: Request rate -->
+  <rect x="56" y="52" width="196" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="68" y="72" font-size="11" fill="#6e6e73">Request rate</text>
+  <text x="68" y="108" font-size="28" font-weight="600" fill="#73bf69">142</text>
+  <text x="148" y="108" font-size="14" fill="#6e6e73">req/s</text>
+  <text x="68" y="128" font-size="11" fill="#5a9e55">↑ 12% vs prev hour</text>
+
+  <!-- Card 2: Error rate -->
+  <rect x="260" y="52" width="196" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="272" y="72" font-size="11" fill="#6e6e73">Error rate</text>
+  <text x="272" y="108" font-size="28" font-weight="600" fill="#73bf69">0.21</text>
+  <text x="352" y="108" font-size="14" fill="#6e6e73">%</text>
+  <text x="272" y="128" font-size="11" fill="#5a9e55">SLO: &lt; 1% ✓</text>
+
+  <!-- Card 3: p95 latency -->
+  <rect x="464" y="52" width="196" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="476" y="72" font-size="11" fill="#6e6e73">p95 latency</text>
+  <text x="476" y="108" font-size="28" font-weight="600" fill="#73bf69">187</text>
+  <text x="556" y="108" font-size="14" fill="#6e6e73">ms</text>
+  <text x="476" y="128" font-size="11" fill="#5a9e55">SLO: &lt; 500ms ✓</text>
+
+  <!-- Card 4: p99 latency -->
+  <rect x="668" y="52" width="196" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="680" y="72" font-size="11" fill="#6e6e73">p99 latency</text>
+  <text x="680" y="108" font-size="28" font-weight="600" fill="#f2cc0c">423</text>
+  <text x="760" y="108" font-size="14" fill="#6e6e73">ms</text>
+  <text x="680" y="128" font-size="11" fill="#c5a800">SLO: &lt; 1500ms ✓</text>
+
+  <!-- Card 5: Pods ready -->
+  <rect x="872" y="52" width="136" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="884" y="72" font-size="11" fill="#6e6e73">Pods ready</text>
+  <text x="884" y="108" font-size="28" font-weight="600" fill="#73bf69">5</text>
+  <text x="916" y="108" font-size="14" fill="#6e6e73">/ 5</text>
+  <text x="884" y="128" font-size="11" fill="#5a9e55">HPA: 3–10 ✓</text>
+
+  <!-- Card 6: Active alerts -->
+  <rect x="1016" y="52" width="172" height="90" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="1028" y="72" font-size="11" fill="#6e6e73">Active alerts</text>
+  <text x="1028" y="108" font-size="28" font-weight="600" fill="#73bf69">0</text>
+  <text x="1028" y="128" font-size="11" fill="#5a9e55">All SLOs healthy</text>
+
+  <!-- ─── PANEL 1: Request rate timeseries ─── -->
+  <rect x="56" y="156" width="540" height="200" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="68" y="176" font-size="12" font-weight="500" fill="#c8c8cd">HTTP request rate (req/s)</text>
+  <!-- Y axis labels -->
+  <text x="62" y="198" text-anchor="end" font-size="10" fill="#6e6e73">200</text>
+  <text x="62" y="228" text-anchor="end" font-size="10" fill="#6e6e73">150</text>
+  <text x="62" y="258" text-anchor="end" font-size="10" fill="#6e6e73">100</text>
+  <text x="62" y="288" text-anchor="end" font-size="10" fill="#6e6e73">50</text>
+  <text x="62" y="338" text-anchor="end" font-size="10" fill="#6e6e73">0</text>
+  <!-- Grid lines -->
+  <line x1="68" y1="195" x2="585" y2="195" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="225" x2="585" y2="225" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="255" x2="585" y2="255" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="285" x2="585" y2="285" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="335" x2="585" y2="335" stroke="#2d3035" stroke-width="0.5"/>
+  <!-- Request rate line (green) -->
+  <polyline points="68,300 110,280 152,290 194,260 236,250 278,240 320,255 362,245 404,235 446,240 488,230 530,235 572,225 585,228" fill="none" stroke="#73bf69" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Fill area under line -->
+  <polygon points="68,335 68,300 110,280 152,290 194,260 236,250 278,240 320,255 362,245 404,235 446,240 488,230 530,235 572,225 585,228 585,335" fill="#73bf69" fill-opacity="0.08"/>
+  <!-- 2xx line (blue) -->
+  <polyline points="68,305 110,285 152,295 194,264 236,255 278,244 320,259 362,249 404,239 446,244 488,233 530,239 572,229 585,232" fill="none" stroke="#5794f2" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4 2"/>
+  <!-- X axis labels -->
+  <text x="68" y="352" font-size="10" fill="#6e6e73">14:00</text>
+  <text x="178" y="352" font-size="10" fill="#6e6e73">14:10</text>
+  <text x="288" y="352" font-size="10" fill="#6e6e73">14:20</text>
+  <text x="398" y="352" font-size="10" fill="#6e6e73">14:30</text>
+  <text x="508" y="352" font-size="10" fill="#6e6e73">14:40</text>
+  <!-- Legend -->
+  <rect x="380" y="162" width="8" height="3" fill="#73bf69"/>
+  <text x="392" y="170" font-size="10" fill="#c8c8cd">Total req/s</text>
+  <rect x="460" y="162" width="8" height="3" fill="#5794f2"/>
+  <text x="472" y="170" font-size="10" fill="#c8c8cd">2xx</text>
+
+  <!-- ─── PANEL 2: Latency percentiles ─── -->
+  <rect x="604" y="156" width="584" height="200" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="616" y="176" font-size="12" font-weight="500" fill="#c8c8cd">Response latency percentiles (ms)</text>
+  <text x="616" y="198" text-anchor="start" font-size="10" fill="#6e6e73">500</text>
+  <text x="616" y="228" text-anchor="start" font-size="10" fill="#6e6e73">400</text>
+  <text x="616" y="258" text-anchor="start" font-size="10" fill="#6e6e73">300</text>
+  <text x="616" y="288" text-anchor="start" font-size="10" fill="#6e6e73">200</text>
+  <text x="616" y="318" text-anchor="start" font-size="10" fill="#6e6e73">100</text>
+  <line x1="636" y1="195" x2="1178" y2="195" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="636" y1="225" x2="1178" y2="225" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="636" y1="255" x2="1178" y2="255" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="636" y1="285" x2="1178" y2="285" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="636" y1="315" x2="1178" y2="315" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="636" y1="335" x2="1178" y2="335" stroke="#2d3035" stroke-width="0.5"/>
+  <!-- p99 line (orange) -->
+  <polyline points="636,270 700,260 770,275 840,255 910,265 980,250 1050,258 1120,245 1178,248" fill="none" stroke="#ff9830" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- p95 line (yellow) -->
+  <polyline points="636,295 700,288 770,300 840,283 910,291 980,278 1050,285 1120,272 1178,276" fill="none" stroke="#f2cc0c" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- p50 line (green) -->
+  <polyline points="636,320 700,315 770,322 840,310 910,316 980,308 1050,313 1120,305 1178,308" fill="none" stroke="#73bf69" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- SLO threshold line -->
+  <line x1="636" y1="235" x2="1178" y2="235" stroke="#e02f44" stroke-width="1" stroke-dasharray="6 3"/>
+  <text x="1140" y="232" font-size="10" fill="#e02f44">SLO 500ms</text>
+  <!-- Legend -->
+  <rect x="900" y="162" width="8" height="3" fill="#ff9830"/>
+  <text x="912" y="170" font-size="10" fill="#c8c8cd">p99</text>
+  <rect x="950" y="162" width="8" height="3" fill="#f2cc0c"/>
+  <text x="962" y="170" font-size="10" fill="#c8c8cd">p95</text>
+  <rect x="1000" y="162" width="8" height="3" fill="#73bf69"/>
+  <text x="1012" y="170" font-size="10" fill="#c8c8cd">p50</text>
+  <text x="636" y="352" font-size="10" fill="#6e6e73">14:00</text>
+  <text x="780" y="352" font-size="10" fill="#6e6e73">14:15</text>
+  <text x="920" y="352" font-size="10" fill="#6e6e73">14:30</text>
+  <text x="1060" y="352" font-size="10" fill="#6e6e73">14:45</text>
+
+  <!-- ─── PANEL 3: Memory per pod ─── -->
+  <rect x="56" y="368" width="360" height="176" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="68" y="388" font-size="12" font-weight="500" fill="#c8c8cd">Memory per pod (MiB)</text>
+  <line x1="68" y1="405" x2="406" y2="405" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="435" x2="406" y2="435" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="465" x2="406" y2="465" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="68" y1="495" x2="406" y2="495" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="62" y="408" text-anchor="end" font-size="10" fill="#6e6e73">512</text>
+  <text x="62" y="438" text-anchor="end" font-size="10" fill="#6e6e73">384</text>
+  <text x="62" y="468" text-anchor="end" font-size="10" fill="#6e6e73">256</text>
+  <text x="62" y="498" text-anchor="end" font-size="10" fill="#6e6e73">128</text>
+  <!-- pod memory lines -->
+  <polyline points="68,455 120,452 180,458 240,448 300,453 360,450 406,451" fill="none" stroke="#5794f2" stroke-width="1.5" stroke-linejoin="round"/>
+  <polyline points="68,460 120,457 180,462 240,452 300,456 360,454 406,455" fill="none" stroke="#73bf69" stroke-width="1.5" stroke-linejoin="round"/>
+  <polyline points="68,448 120,445 180,451 240,441 300,446 360,443 406,444" fill="none" stroke="#ff9830" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- limit line -->
+  <line x1="68" y1="405" x2="406" y2="405" stroke="#e02f44" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="340" y="402" font-size="10" fill="#e02f44">limit</text>
+  <text x="68" y="534" font-size="10" fill="#6e6e73">14:00</text>
+  <text x="220" y="534" font-size="10" fill="#6e6e73">14:20</text>
+  <text x="360" y="534" font-size="10" fill="#6e6e73">14:40</text>
+
+  <!-- ─── PANEL 4: CPU per pod ─── -->
+  <rect x="424" y="368" width="360" height="176" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="436" y="388" font-size="12" font-weight="500" fill="#c8c8cd">CPU per pod (millicores)</text>
+  <line x1="436" y1="405" x2="774" y2="405" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="436" y1="430" x2="774" y2="430" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="436" y1="455" x2="774" y2="455" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="436" y1="480" x2="774" y2="480" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="436" y1="505" x2="774" y2="505" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="430" y="408" text-anchor="end" font-size="10" fill="#6e6e73">500m</text>
+  <text x="430" y="433" text-anchor="end" font-size="10" fill="#6e6e73">375m</text>
+  <text x="430" y="458" text-anchor="end" font-size="10" fill="#6e6e73">250m</text>
+  <text x="430" y="483" text-anchor="end" font-size="10" fill="#6e6e73">125m</text>
+  <polyline points="436,475 500,465 560,478 620,460 680,470 740,455 774,460" fill="none" stroke="#5794f2" stroke-width="1.5" stroke-linejoin="round"/>
+  <polyline points="436,480 500,468 560,482 620,464 680,474 740,460 774,464" fill="none" stroke="#73bf69" stroke-width="1.5" stroke-linejoin="round"/>
+  <line x1="436" y1="405" x2="774" y2="405" stroke="#e02f44" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="720" y="402" font-size="10" fill="#e02f44">limit 500m</text>
+
+  <!-- ─── PANEL 5: DB query rate ─── -->
+  <rect x="792" y="368" width="396" height="176" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="804" y="388" font-size="12" font-weight="500" fill="#c8c8cd">DB query rate (queries/s)</text>
+  <line x1="804" y1="405" x2="1178" y2="405" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="804" y1="435" x2="1178" y2="435" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="804" y1="465" x2="1178" y2="465" stroke="#2d3035" stroke-width="0.5"/>
+  <line x1="804" y1="495" x2="1178" y2="495" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="798" y="408" text-anchor="end" font-size="10" fill="#6e6e73">400</text>
+  <text x="798" y="438" text-anchor="end" font-size="10" fill="#6e6e73">300</text>
+  <text x="798" y="468" text-anchor="end" font-size="10" fill="#6e6e73">200</text>
+  <text x="798" y="498" text-anchor="end" font-size="10" fill="#6e6e73">100</text>
+  <polyline points="804,460 870,450 940,462 1010,445 1080,455 1150,442 1178,446" fill="none" stroke="#b877d9" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="804,505 804,460 870,450 940,462 1010,445 1080,455 1150,442 1178,446 1178,505" fill="#b877d9" fill-opacity="0.07"/>
+
+  <!-- ─── PANEL 6: Top slowest views table ─── -->
+  <rect x="56" y="556" width="1132" height="144" rx="4" fill="#1c1e24" stroke="#2d3035" stroke-width="0.5"/>
+  <text x="68" y="576" font-size="12" font-weight="500" fill="#c8c8cd">Top 10 slowest views — p95 latency (ms)</text>
+  <!-- Table header -->
+  <rect x="56" y="582" width="1132" height="22" fill="#1f2128"/>
+  <text x="72" y="597" font-size="11" fill="#6e6e73">View</text>
+  <text x="700" y="597" font-size="11" fill="#6e6e73">Method</text>
+  <text x="820" y="597" font-size="11" fill="#6e6e73">Requests/s</text>
+  <text x="960" y="597" font-size="11" fill="#6e6e73">p95 (ms)</text>
+  <text x="1080" y="597" font-size="11" fill="#6e6e73">p99 (ms)</text>
+  <!-- Rows -->
+  <text x="72" y="616" font-size="11" fill="#c8c8cd">/api/articles/</text>
+  <text x="700" y="616" font-size="11" fill="#5794f2">GET</text>
+  <text x="820" y="616" font-size="11" fill="#c8c8cd">84.2</text>
+  <text x="960" y="616" font-size="11" fill="#73bf69">187</text>
+  <text x="1080" y="616" font-size="11" fill="#f2cc0c">423</text>
+
+  <rect x="56" y="620" width="1132" height="1" fill="#2d3035"/>
+  <text x="72" y="634" font-size="11" fill="#c8c8cd">/api/articles/&lt;id&gt;/</text>
+  <text x="700" y="634" font-size="11" fill="#5794f2">GET</text>
+  <text x="820" y="634" font-size="11" fill="#c8c8cd">38.6</text>
+  <text x="960" y="634" font-size="11" fill="#73bf69">142</text>
+  <text x="1080" y="634" font-size="11" fill="#73bf69">318</text>
+
+  <rect x="56" y="638" width="1132" height="1" fill="#2d3035"/>
+  <text x="72" y="652" font-size="11" fill="#c8c8cd">/api/articles/</text>
+  <text x="700" y="652" font-size="11" fill="#ff9830">POST</text>
+  <text x="820" y="652" font-size="11" fill="#c8c8cd">12.4</text>
+  <text x="960" y="652" font-size="11" fill="#73bf69">298</text>
+  <text x="1080" y="652" font-size="11" fill="#f2cc0c">612</text>
+
+  <rect x="56" y="656" width="1132" height="1" fill="#2d3035"/>
+  <text x="72" y="670" font-size="11" fill="#c8c8cd">/health/</text>
+  <text x="700" y="670" font-size="11" fill="#5794f2">GET</text>
+  <text x="820" y="670" font-size="11" fill="#c8c8cd">142.0</text>
+  <text x="960" y="670" font-size="11" fill="#73bf69">8</text>
+  <text x="1080" y="670" font-size="11" fill="#73bf69">14</text>
+
+  <rect x="56" y="674" width="1132" height="1" fill="#2d3035"/>
+  <text x="72" y="688" font-size="11" fill="#c8c8cd">/api/articles/&lt;id&gt;/</text>
+  <text x="700" y="688" font-size="11" fill="#ff9830">PATCH</text>
+  <text x="820" y="688" font-size="11" fill="#c8c8cd">4.1</text>
+  <text x="960" y="688" font-size="11" fill="#73bf69">211</text>
+  <text x="1080" y="688" font-size="11" fill="#73bf69">487</text>
+
+  <!-- Bottom status bar -->
+  <rect x="0" y="704" width="1200" height="16" fill="#161719"/>
+  <text x="56" y="715" font-size="10" fill="#6e6e73">Orbital — Platform Overview · Datasource: Prometheus · orbital namespace · All SLOs healthy</text>
+  <text x="1050" y="715" font-size="10" fill="#6e6e73">Grafana v10.2.0</text>
+</svg>

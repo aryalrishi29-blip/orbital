@@ -1,0 +1,176 @@
+<svg width="1200" height="680" viewBox="0 0 1200 680" xmlns="http://www.w3.org/2000/svg" font-family="Inter,ui-sans-serif,system-ui,sans-serif">
+  <rect width="1200" height="680" fill="#fff"/>
+
+  <!-- Top nav -->
+  <rect width="1200" height="48" fill="#105dae"/>
+  <text x="20" y="30" font-size="16" font-weight="700" fill="#fff">Jaeger</text>
+  <text x="100" y="30" font-size="13" fill="#a8c7f5">Search</text>
+  <text x="175" y="30" font-size="13" fill="#a8c7f5">Compare</text>
+  <text x="265" y="30" font-size="13" fill="#a8c7f5">System Architecture</text>
+  <text x="950" y="30" font-size="12" fill="#a8c7f5">orbital · 2 services · 12 spans</text>
+
+  <!-- Trace header -->
+  <rect x="0" y="48" width="1200" height="64" fill="#f5f7fa" />
+  <rect x="0" y="111" width="1200" height="1" fill="#dee3ea"/>
+  <text x="20" y="76" font-size="20" font-weight="700" fill="#17233a">GET /api/articles/</text>
+  <rect x="20" y="84" width="68" height="20" rx="10" fill="#e8f5e9"/>
+  <text x="54" y="98" text-anchor="middle" font-size="11" font-weight="600" fill="#2e7d32">200 OK</text>
+  <text x="104" y="98" font-size="12" fill="#666">orbital</text>
+  <text x="180" y="98" font-size="12" fill="#999">|</text>
+  <text x="196" y="98" font-size="12" fill="#666">Total: 187ms</text>
+  <text x="320" y="98" font-size="12" fill="#999">|</text>
+  <text x="336" y="98" font-size="12" fill="#666">Services: 2</text>
+  <text x="436" y="98" font-size="12" fill="#999">|</text>
+  <text x="452" y="98" font-size="12" fill="#666">Spans: 12</text>
+  <text x="540" y="98" font-size="12" fill="#999">|</text>
+  <text x="556" y="98" font-size="12" fill="#666">14 Mar 2025, 14:31:47</text>
+
+  <!-- Trace ID -->
+  <text x="900" y="76" font-size="11" fill="#999">Trace ID</text>
+  <text x="900" y="96" font-size="12" font-family="monospace" fill="#105dae">3a7b9f2e1c804d56</text>
+
+  <!-- Timeline header -->
+  <rect x="0" y="112" width="1200" height="32" fill="#f5f7fa"/>
+  <rect x="0" y="143" width="1200" height="1" fill="#dee3ea"/>
+  <text x="20" y="132" font-size="11" fill="#666">Service &amp; Operation</text>
+  <!-- Timeline ticks -->
+  <text x="400" y="132" font-size="11" fill="#999">0ms</text>
+  <text x="540" y="132" font-size="11" fill="#999">47ms</text>
+  <text x="700" y="132" font-size="11" fill="#999">93ms</text>
+  <text x="860" y="132" font-size="11" fill="#999">140ms</text>
+  <text x="1020" y="132" font-size="11" fill="#999">187ms</text>
+  <line x1="400" y1="112" x2="400" y2="680" stroke="#eee" stroke-width="1"/>
+  <line x1="540" y1="112" x2="540" y2="680" stroke="#eee" stroke-width="1"/>
+  <line x1="700" y1="112" x2="700" y2="680" stroke="#eee" stroke-width="1"/>
+  <line x1="860" y1="112" x2="860" y2="680" stroke="#eee" stroke-width="1"/>
+  <line x1="1020" y1="112" x2="1020" y2="680" stroke="#eee" stroke-width="1"/>
+
+  <!-- ─── SPANS ─── -->
+
+  <!-- Span 1: HTTP GET /api/articles/ (root) -->
+  <rect x="0" y="144" width="1200" height="40" fill="#fff"/>
+  <rect x="0" y="183" width="1200" height="1" fill="#eef0f4"/>
+  <text x="20" y="168" font-size="12" font-weight="600" fill="#105dae">orbital</text>
+  <text x="20" y="182" font-size="11" fill="#444">GET /api/articles/</text>
+  <rect x="400" y="152" width="620" height="20" rx="3" fill="#105dae"/>
+  <text x="710" y="166" text-anchor="middle" font-size="10" fill="#fff">187ms</text>
+
+  <!-- Span 2: django.middleware.PrometheusBeforeMiddleware -->
+  <rect x="0" y="184" width="1200" height="36" fill="#fff"/>
+  <rect x="0" y="219" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="12" y="190" width="4" height="24" fill="#105dae" rx="2"/>
+  <text x="28" y="202" font-size="11" fill="#444">PrometheusBeforeMiddleware</text>
+  <text x="28" y="214" font-size="10" fill="#999">orbital</text>
+  <rect x="400" y="192" width="8" height="16" rx="2" fill="#5794f2"/>
+  <text x="414" y="203" font-size="10" fill="#666">1ms</text>
+
+  <!-- Span 3: django.view.ArticleListView -->
+  <rect x="0" y="220" width="1200" height="36" fill="#fafbfc"/>
+  <rect x="0" y="255" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="12" y="226" width="4" height="24" fill="#105dae" rx="2"/>
+  <text x="28" y="238" font-size="11" font-weight="600" fill="#105dae">ArticleListView.get</text>
+  <text x="28" y="250" font-size="10" fill="#999">orbital · http.method=GET</text>
+  <rect x="403" y="228" width="590" height="16" rx="2" fill="#5794f2"/>
+  <text x="698" y="239" text-anchor="middle" font-size="10" fill="#fff">183ms</text>
+
+  <!-- Span 4: DB SELECT articles -->
+  <rect x="0" y="256" width="1200" height="36" fill="#fff"/>
+  <rect x="0" y="291" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="24" y="262" width="4" height="24" fill="#e8702a" rx="2"/>
+  <text x="40" y="274" font-size="11" fill="#444">psycopg2.execute</text>
+  <text x="40" y="286" font-size="10" fill="#999">postgresql · db.statement=SELECT…</text>
+  <rect x="410" y="264" width="96" height="16" rx="2" fill="#e8702a"/>
+  <text x="458" y="275" text-anchor="middle" font-size="10" fill="#fff">28ms</text>
+
+  <!-- Span 5: DB COMMIT -->
+  <rect x="0" y="292" width="1200" height="36" fill="#fafbfc"/>
+  <rect x="0" y="327" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="24" y="298" width="4" height="24" fill="#e8702a" rx="2"/>
+  <text x="40" y="310" font-size="11" fill="#444">psycopg2.execute</text>
+  <text x="40" y="322" font-size="10" fill="#999">postgresql · db.statement=COMMIT</text>
+  <rect x="510" y="300" width="12" height="16" rx="2" fill="#e8702a"/>
+  <text x="530" y="311" font-size="10" fill="#666">3ms</text>
+
+  <!-- Span 6: Serialization -->
+  <rect x="0" y="328" width="1200" height="36" fill="#fff"/>
+  <rect x="0" y="363" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="24" y="334" width="4" height="24" fill="#105dae" rx="2"/>
+  <text x="40" y="346" font-size="11" fill="#444">json.dumps</text>
+  <text x="40" y="358" font-size="10" fill="#999">orbital · articles=24</text>
+  <rect x="524" y="336" width="28" height="16" rx="2" fill="#5794f2"/>
+  <text x="538" y="347" text-anchor="middle" font-size="10" fill="#fff">8ms</text>
+
+  <!-- Span 7: Linkerd proxy outbound -->
+  <rect x="0" y="364" width="1200" height="36" fill="#fafbfc"/>
+  <rect x="0" y="399" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="12" y="370" width="4" height="24" fill="#4caf50" rx="2"/>
+  <text x="28" y="382" font-size="11" fill="#444">linkerd-proxy outbound</text>
+  <text x="28" y="394" font-size="10" fill="#999">linkerd · mTLS · response_latency=187ms</text>
+  <rect x="400" y="372" width="620" height="16" rx="2" fill="#4caf50" fill-opacity="0.3" stroke="#4caf50" stroke-width="0.5"/>
+  <text x="710" y="383" text-anchor="middle" font-size="10" fill="#2e7d32">187ms</text>
+
+  <!-- Span 8: PrometheusAfterMiddleware -->
+  <rect x="0" y="400" width="1200" height="36" fill="#fff"/>
+  <rect x="0" y="435" width="1200" height="1" fill="#eef0f4"/>
+  <rect x="12" y="406" width="4" height="24" fill="#105dae" rx="2"/>
+  <text x="28" y="418" font-size="11" fill="#444">PrometheusAfterMiddleware</text>
+  <text x="28" y="430" font-size="10" fill="#999">orbital · http.status_code=200</text>
+  <rect x="1018" y="408" width="4" height="16" rx="2" fill="#5794f2"/>
+  <text x="1028" y="419" font-size="10" fill="#666">1ms</text>
+
+  <!-- ─── SPAN DETAIL PANEL ─── -->
+  <rect x="0" y="436" width="1200" height="244" fill="#f9f9f9"/>
+  <rect x="0" y="436" width="1200" height="1" fill="#dee3ea"/>
+
+  <text x="20" y="460" font-size="13" font-weight="700" fill="#17233a">Span Detail — ArticleListView.get</text>
+  <text x="20" y="478" font-size="11" fill="#999">Span ID: 7a2f9b3c1d8e4f50</text>
+
+  <!-- Tags left column -->
+  <text x="20" y="504" font-size="11" font-weight="600" fill="#666">TAGS</text>
+  <text x="20" y="522" font-size="11" fill="#999">http.method</text>
+  <text x="160" y="522" font-size="11" fill="#17233a">GET</text>
+  <text x="20" y="538" font-size="11" fill="#999">http.url</text>
+  <text x="160" y="538" font-size="11" fill="#105dae">/api/articles/</text>
+  <text x="20" y="554" font-size="11" fill="#999">http.status_code</text>
+  <text x="160" y="554" font-size="11" fill="#2e7d32">200</text>
+  <text x="20" y="570" font-size="11" fill="#999">http.flavor</text>
+  <text x="160" y="570" font-size="11" fill="#17233a">1.1</text>
+  <text x="20" y="586" font-size="11" fill="#999">net.host.name</text>
+  <text x="160" y="586" font-size="11" fill="#17233a">orbital.svc.cluster.local</text>
+  <text x="20" y="602" font-size="11" fill="#999">net.peer.ip</text>
+  <text x="160" y="602" font-size="11" fill="#17233a">10.0.4.231</text>
+
+  <!-- Tags middle column -->
+  <text x="400" y="504" font-size="11" font-weight="600" fill="#666">PROCESS</text>
+  <text x="400" y="522" font-size="11" fill="#999">service.name</text>
+  <text x="560" y="522" font-size="11" fill="#17233a">orbital</text>
+  <text x="400" y="538" font-size="11" fill="#999">service.version</text>
+  <text x="560" y="538" font-size="11" fill="#17233a">1.0.0</text>
+  <text x="400" y="554" font-size="11" fill="#999">deployment.environment</text>
+  <text x="560" y="554" font-size="11" fill="#17233a">production</text>
+  <text x="400" y="570" font-size="11" fill="#999">k8s.pod.name</text>
+  <text x="560" y="570" font-size="11" fill="#17233a">orbital-d4b9f-x7k2p</text>
+  <text x="400" y="586" font-size="11" fill="#999">k8s.namespace.name</text>
+  <text x="560" y="586" font-size="11" fill="#17233a">orbital</text>
+  <text x="400" y="602" font-size="11" fill="#999">k8s.node.name</text>
+  <text x="560" y="602" font-size="11" fill="#17233a">ip-10-0-1-42.ec2.internal</text>
+
+  <!-- Logs / events -->
+  <text x="800" y="504" font-size="11" font-weight="600" fill="#666">LOGS</text>
+  <text x="800" y="522" font-size="10" fill="#999">14:31:47.183</text>
+  <text x="900" y="522" font-size="11" fill="#17233a">articles fetched: 24 records</text>
+  <text x="800" y="538" font-size="10" fill="#999">14:31:47.182</text>
+  <text x="900" y="538" font-size="11" fill="#17233a">cache miss: querying database</text>
+  <text x="800" y="554" font-size="10" fill="#999">14:31:47.154</text>
+  <text x="900" y="554" font-size="11" fill="#17233a">request received</text>
+
+  <!-- Legend at bottom -->
+  <rect x="0" y="660" width="1200" height="20" fill="#f5f7fa"/>
+  <rect x="20" y="667" width="12" height="8" rx="2" fill="#105dae"/>
+  <text x="38" y="675" font-size="11" fill="#666">orbital (Django)</text>
+  <rect x="180" y="667" width="12" height="8" rx="2" fill="#e8702a"/>
+  <text x="198" y="675" font-size="11" fill="#666">postgresql (psycopg2)</text>
+  <rect x="380" y="667" width="12" height="8" rx="2" fill="#4caf50"/>
+  <text x="398" y="675" font-size="11" fill="#666">linkerd-proxy</text>
+  <text x="700" y="675" font-size="11" fill="#999">Jaeger UI · orbital service · Trace 3a7b9f2e1c804d56</text>
+</svg>
