@@ -31,49 +31,32 @@
 
 ### Grafana — Real-Time Observability Dashboard
 
-The 9-panel dashboard tracks request rate, p95/p99 latency, error rate gauge,
-memory and CPU per pod, DB query throughput and latency, and a live table of
-the top 10 slowest API views.
+9-panel dashboard: request rate, p95/p99 latency, error rate, memory and CPU
+per pod, DB query throughput and latency, and a live table of the top 10 slowest views.
 
-```
-Add your screenshot → docs/images/grafana-dashboard.png
-Capture: make grafana-ui  →  http://localhost:3000
-         Dashboard: Orbital — Platform Overview
-```
+![Grafana Dashboard](docs/images/grafana-dashboard.svg)
 
 ### ArgoCD — GitOps Deployment Console
 
-Every deployment is triggered by a Git commit — zero manual kubectl.
-The console shows sync status, deployment history, resource health, and
-the diff between desired and live cluster state.
+Every deployment is triggered by a Git commit — zero manual `kubectl apply`.
+The console shows sync status, deployment history, resource health, and the
+live diff between desired and actual cluster state.
 
-```
-Add your screenshot → docs/images/argocd-console.png
-Capture: make argocd-ui  →  https://localhost:8080
-```
+![ArgoCD Console](docs/images/argocd-console.svg)
 
 ### Jaeger — Distributed Tracing
 
-Every HTTP request produces a trace spanning Django view → middleware →
-database query. The waterfall view pinpoints exactly which layer is
-responsible for latency.
+Every HTTP request produces a trace spanning Django view → middleware → database
+query. 12 spans captured per request — pinpoints exactly which layer is causing latency.
 
-```
-Add your screenshot → docs/images/jaeger-trace.png
-Capture: make tracing-ui  →  http://localhost:16686
-         Search: service=orbital
-```
+![Jaeger Trace](docs/images/jaeger-trace.svg)
 
 ### Kubecost — Cloud Cost Visibility
 
-Per-namespace cost breakdown, idle resource detection, and weekly rightsizing
-recommendations posted automatically to Slack every Monday.
+Per-namespace cost breakdown, idle resource detection, rightsizing recommendations,
+and a weekly cost report posted automatically to Slack every Monday at 08:00 UTC.
 
-```
-Add your screenshot → docs/images/kubecost-dashboard.png
-Capture: make finops-ui  →  http://localhost:9090
-         View: Allocations → filter namespace=orbital
-```
+![Kubecost Dashboard](docs/images/kubecost-dashboard.svg)
 
 ---
 
