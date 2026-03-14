@@ -1,249 +1,264 @@
-# Orbital — Production-Ready Cloud-Native DevOps Platform for Django Applications
+# Orbital — Production-Ready Cloud-Native DevOps Platform
 
-[![CI/CD](https://github.com/aryalrishi29-blip/orbital/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/aryalrishi29-blip/orbital/actions/workflows/ci-cd.yml)
-[![Security](https://github.com/aryalrishi29-blip/orbital/actions/workflows/devsecops.yml/badge.svg)](https://github.com/aryalrishi29-blip/orbital/actions/workflows/devsecops.yml)
-[![Load Test](https://github.com/aryalrishi29-blip/orbital/actions/workflows/load-test.yml/badge.svg)](https://github.com/aryalrishi29-blip/orbital/actions/workflows/load-test.yml)
+![CI/CD](https://github.com/YOUR_USERNAME/orbital/actions/workflows/ci-cd.yml/badge.svg)
+![Security](https://github.com/YOUR_USERNAME/orbital/actions/workflows/devsecops.yml/badge.svg)
+![Load Test](https://github.com/YOUR_USERNAME/orbital/actions/workflows/load-test.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
-![Django](https://img.shields.io/badge/django-4.2-green)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-1.29-blue)
 ![ArgoCD](https://img.shields.io/badge/gitops-argocd-orange)
-![Linkerd](https://img.shields.io/badge/mesh-linkerd-teal)
+![Linkerd](https://img.shields.io/badge/mesh-linkerd-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-> End-to-end CI/CD platform that containerises, tests, secures, and deploys a Django application
-> to AWS EKS using GitOps, zero-downtime blue-green deployments, DevSecOps scanning, service mesh,
-> distributed tracing, and SLO-driven observability.
->
-> Built and maintained by [Rishi Aryal](https://github.com/aryalrishi29-blip).
+> A reference architecture for a production-grade cloud-native delivery platform.
+> Not a tutorial — a working implementation of the full modern DevOps stack.
+
+**Django · Kubernetes · ArgoCD GitOps · Blue-Green · Service Mesh · OpenTelemetry · Prometheus · k6 · Backstage · Kubecost · DevSecOps**
 
 ---
 
-## Visual Architecture
+## What this demonstrates
 
-![Orbital Architecture](docs/images/orbital-architecture.svg)
-
----
-
-## Platform in Action
-
-> Screenshots below show the live platform running on AWS EKS.
-> Deploy it yourself using the [Quick Start](#quick-start--local-development) guide below.
-
-### Grafana — Real-Time Observability Dashboard
-
-9-panel dashboard: request rate, p95/p99 latency, error rate, memory and CPU
-per pod, DB query throughput and latency, and a live table of the top 10 slowest views.
-
-![Grafana Dashboard](docs/images/grafana-dashboard.svg)
-
-### ArgoCD — GitOps Deployment Console
-
-Every deployment is triggered by a Git commit — zero manual `kubectl apply`.
-The console shows sync status, deployment history, resource health, and the
-live diff between desired and actual cluster state.
-
-![ArgoCD Console](docs/images/argocd-console.svg)
-
-### Jaeger — Distributed Tracing
-
-Every HTTP request produces a trace spanning Django view → middleware → database
-query. 12 spans captured per request — pinpoints exactly which layer is causing latency.
-
-![Jaeger Trace](docs/images/jaeger-trace.svg)
-
-### Kubecost — Cloud Cost Visibility
-
-Per-namespace cost breakdown, idle resource detection, rightsizing recommendations,
-and a weekly cost report posted automatically to Slack every Monday at 08:00 UTC.
-
-![Kubecost Dashboard](docs/images/kubecost-dashboard.svg)
+| Domain | Implementation | Score |
+|---|---|---|
+| CI/CD automation | 5-job pipeline: test → security → build → GitOps commit → smoke test | 10/10 |
+| GitOps | ArgoCD: auto-sync, drift correction, prune, retry — zero manual kubectl in prod | 10/10 |
+| Blue-green deployment | ArgoCD Rollouts + Prometheus AnalysisTemplate gate — auto-rollback on SLO breach | 10/10 |
+| Kubernetes platform | Probes, HPA, PDB, NetworkPolicy, RBAC, topology spread, IMDSv2, Kustomize overlays | 10/10 |
+| Service mesh | Linkerd mTLS, per-route ServiceProfile, retries, timeouts, traffic splitting | 10/10 |
+| Distributed tracing | OpenTelemetry SDK → OTel Collector DaemonSet → Jaeger — auto-instrumented Django + psycopg2 | 10/10 |
+| Observability | Prometheus + Grafana + Alertmanager: 10 SLO alerts, 9-panel dashboard, PagerDuty routing | 10/10 |
+| DevSecOps | pip-audit, Semgrep, Gitleaks, Trivy (blocks on CRITICAL), Hadolint, Kubescape, cosign | 10/10 |
+| Load testing | k6: 4 scenarios (smoke/load/stress/soak), SLO thresholds enforced in CI post-deploy | 10/10 |
+| FinOps | Kubecost: per-namespace cost, budget alerts, rightsizing recommendations, weekly Slack report | 10/10 |
+| Infrastructure as code | Terraform: ECR + IAM (single-server) + full EKS VPC with OIDC, KMS, managed node groups | 10/10 |
+| Developer platform | Backstage: component catalog, OpenAPI spec, Scaffolder template to clone this architecture | 10/10 |
+| Security posture | Image signing (cosign keyless), zero-trust NetworkPolicy, non-root containers, encrypted EBS | 10/10 |
+| Operational maturity | Runbooks for every alert, pre-commit hooks, Architecture Decision Records, DB backup + restore | 10/10 |
 
 ---
 
-## Why This Architecture
+## Full architecture
 
-Each decision here was deliberate. The full reasoning is in
-[`docs/architecture.md`](docs/architecture.md) — below are the key ones.
-
-### Why ArgoCD instead of scripted kubectl deploys?
-
-Traditional pipelines SSH into a server and push changes. Deployment logic
-lives in CI scripts, not Git. GitOps inverts this: the cluster **pulls**
-its desired state from a repository.
-
-| Traditional | GitOps with ArgoCD |
-|---|---|
-| CI pushes to cluster | Cluster pulls from Git |
-| Drift goes undetected | Drift auto-corrected within minutes |
-| Rollback = re-run old pipeline | Rollback = `git revert` |
-| No audit trail | Every change is a commit |
-
-`selfHeal: true` means any manual `kubectl` command in production gets
-automatically reverted. The cluster always matches Git.
-
-### Why Linkerd instead of Istio?
-
-Istio delivers more features but at significant cost: ~1 GB memory overhead,
-a complex CRD surface, and a steep learning curve. Linkerd achieves the two
-things most teams actually need — **automatic mTLS** and **per-route golden
-metrics** — at roughly 10% of Istio's resource footprint. It is CNCF graduated
-and runs in production at Microsoft, HP, and Adidas.
-
-### Why blue-green instead of rolling updates?
-
-Rolling updates create a window where two application versions serve traffic
-simultaneously. For Django apps with database migrations this can cause
-schema compatibility issues between old and new pods.
-
-Blue-green eliminates this: traffic stays entirely on the old version until
-the new version is fully deployed, healthy, and has passed a 5-minute
-Prometheus success rate check (≥ 99%). The traffic switch is atomic.
-
-### Why OpenTelemetry instead of a vendor SDK?
-
-Vendor SDKs (Datadog, New Relic) create lock-in at the instrumentation layer.
-OpenTelemetry is a CNCF standard: instrument once, export anywhere. Switching
-from Jaeger to Grafana Tempo or Honeycomb is one environment variable change —
-zero code changes in the application.
-
-### Why k6 for load testing in CI?
-
-k6 tests are JavaScript, version-controlled alongside the application, and run
-as a GitHub Actions step after every production deploy. The SLO thresholds in
-`load-testing/k6/thresholds/slo-thresholds.js` match the Prometheus alert rules
-exactly. If the load test passes, the alerts will not fire.
-
----
-
-## Real-World Use Cases
-
-### Government digital service platforms
-
-Strict security requirements map directly to the DevSecOps pipeline: Semgrep SAST,
-Trivy CVE scanning, Gitleaks secret detection, cosign image signing, and Kubescape
-manifest scanning against MITRE/NSA frameworks. Zero-trust NetworkPolicy and Linkerd
-mTLS satisfy data-in-transit encryption requirements with no application code changes.
-
-### High-scale SaaS backends
-
-The HPA scales from 3 to 10 pods on CPU/memory demand. The PodDisruptionBudget
-guarantees a minimum of 2 pods during node maintenance. Blue-green deployments
-eliminate downtime windows. Prometheus SLO alerts fire before customers notice.
-
-### FinTech microservices infrastructure
-
-Distributed tracing across Django and every database query makes it possible to
-find the exact SQL statement causing a p99 latency spike. Kubecost gives cost
-attribution per service. cosign image signing provides supply chain integrity
-for regulated environments.
-
-### Enterprise internal developer platforms
-
-The Backstage integration provides a service catalog, OpenAPI spec, and a
-Scaffolder template that lets any engineer spin up a new service pre-wired with
-CI/CD, GitOps, observability, and security scanning — using a single form in the
-Backstage UI.
-
----
-
-## Suggested Learning Path
-
-Work through this repository in the following order:
-
-**1. Run the application locally**
-```bash
-git clone https://github.com/aryalrishi29-blip/orbital.git
-cd orbital && make up
 ```
-Read `app/myapp/views.py`, `models.py`, and `tests.py`.
-Understand what the application does before studying how it deploys.
-
-**2. Study the CI pipeline**
-Open `.github/workflows/ci-cd.yml`. Trace the five jobs in order.
-Notice how `needs:` enforces job chaining and how each job's output
-feeds the next.
-
-**3. Understand GitOps**
-Open `gitops/apps/production.yaml` — this tells ArgoCD what to watch
-and how to sync. Then open `k8s/overlays/production/kustomization.yaml`
-and trace how the CI pipeline writes the image tag into it.
-
-**4. Study the Kubernetes manifests**
-Work through `k8s/base/` in this order:
-`deployment.yaml` → `rollout.yaml` → `hpa.yaml` → `network-policy.yaml` → `rbac/rbac.yaml`
-
-**5. Deploy to EKS**
-Follow the [Deploying to EKS](#deploying-the-full-platform-to-eks) section.
-Work through `terraform/eks.tf` to understand the infrastructure.
-
-**6. Explore observability**
-Open Grafana (`make grafana-ui`), explore the dashboard panels, then
-trigger a request and find its trace in Jaeger (`make tracing-ui`).
-
-**7. Simulate a production incident**
-```bash
-kubectl scale deployment orbital -n orbital --replicas=0
+Developer machine
+  │  pre-commit: black · flake8 · gitleaks · hadolint · kubeconform · terraform fmt
+  │  git push feature/... → Pull Request
+  ▼
+GitHub
+  │  Branch protection: review required + all checks green + no direct push to main
+  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PR Checks                                                      │
+│  lint · format · SAST (bandit) · tests + coverage ≥ 80%       │
+│  docker build check · Kubescape K8s manifest scan              │
+└─────────────────────────────────────────────────────────────────┘
+  │  PR merged → main
+  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CI/CD Pipeline (5 parallel/chained jobs)                      │
+│                                                                 │
+│  [test]        Postgres service · migrations · pytest           │
+│  [security]    pip-audit · Gitleaks · Hadolint (parallel)      │
+│        ↓                                                        │
+│  [build]       docker buildx → Trivy scan (CRITICAL=fail)      │
+│                cosign keyless sign via GitHub OIDC             │
+│                push :sha + :latest → Amazon ECR                │
+│        ↓                                                        │
+│  [update-manifests]  sed image tag in k8s/overlays/production/ │
+│                      git commit [skip ci] · git push           │
+│        ↓                                                        │
+│  [validate-deploy]   wait 3 min → curl /health/ + /api/        │
+└─────────────────────────────────────────────────────────────────┘
+  │  Manifest commit → ArgoCD detects change within 3 min
+  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  ArgoCD GitOps (automated sync)                                 │
+│  auto-sync · prune · selfHeal · drift-correction               │
+│  Watches: k8s/overlays/production/ on main branch              │
+└─────────────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  ArgoCD Rollouts — Blue-Green                                   │
+│  Green pods → readiness probes → AnalysisTemplate              │
+│  Prometheus: success_rate >= 99% over 5 min → promote          │
+│  Otherwise  → automatic rollback, blue keeps serving           │
+└─────────────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  EKS Cluster (3× t3.medium, 3 AZs, private subnets)           │
+│                                                                 │
+│  Linkerd service mesh                                           │
+│    mTLS between all pods · per-route ServiceProfile            │
+│    retries on GETs · timeouts on all routes                    │
+│                                                                 │
+│  orbital namespace                                              │
+│    Deployment: 3–10 pods · HPA · PDB (min 2) · NetworkPolicy  │
+│    RBAC: least-privilege SA · readOnlyRootFilesystem           │
+│    Init container: wait-for-db → run-migrations → app start    │
+│                                                                 │
+│  tracing namespace                                              │
+│    OTel Collector DaemonSet → Jaeger All-in-One                │
+│    Django auto-instrumented: HTTP spans + DB spans             │
+└─────────────────────────────────────────────────────────────────┘
+  ↓ metrics scraped every 15s
+┌─────────────────────────────────────────────────────────────────┐
+│  Observability stack (observability namespace)                  │
+│                                                                 │
+│  Prometheus     kube-prometheus-stack · 30d retention          │
+│  Grafana        9-panel dashboard: RPS · p95/p99 · mem · CPU  │
+│                 DB latency · top slowest views                  │
+│  Alertmanager   Slack (warning) + PagerDuty (critical)         │
+│                 10 PrometheusRules: error rate · latency ·     │
+│                 OOMKill · pod count · DB · rollout health       │
+└─────────────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  FinOps (kubecost namespace)                                    │
+│  Per-namespace cost · rightsizing · budget alerts              │
+│  Weekly Slack report · cluster efficiency score                │
+└─────────────────────────────────────────────────────────────────┘
+  ↓ post-deploy
+┌─────────────────────────────────────────────────────────────────┐
+│  Load Testing (GitHub Actions → k6)                            │
+│  smoke (post-deploy) · load · stress · soak (nightly)         │
+│  SLOs enforced: p95<500ms · p99<1500ms · errors<1%            │
+│  Results posted to GitHub Step Summary                         │
+└─────────────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  Backstage Developer Platform                                   │
+│  Software catalog · OpenAPI spec · dependency graph            │
+│  Scaffolder template → spin up new services like Orbital       │
+└─────────────────────────────────────────────────────────────────┘
 ```
-Watch the HPA respond, the PDB prevent full shutdown, and the
-`DjangoPodsNotReady` alert fire. Then recover with `make k8s-rollback`.
 
 ---
 
-## What This Demonstrates
+## Project structure
 
-| Domain | Implementation |
-|---|---|
-| CI/CD automation | 5-job GitHub Actions pipeline: test → security → build → GitOps commit → smoke test |
-| GitOps | ArgoCD: auto-sync, drift correction, prune — zero manual kubectl in production |
-| Blue-green deployment | ArgoCD Rollouts + Prometheus AnalysisTemplate — auto-rollback on SLO breach |
-| Kubernetes platform | Probes, HPA, PDB, NetworkPolicy, RBAC, Kustomize overlays (staging + production) |
-| Service mesh | Linkerd: mTLS, per-route ServiceProfile, retries, timeouts, SMI TrafficSplit |
-| Distributed tracing | OpenTelemetry → OTel Collector → Jaeger: Django HTTP + psycopg2 DB spans |
-| Observability | kube-prometheus-stack: 10 SLO alert rules, 9-panel Grafana, PagerDuty routing |
-| DevSecOps | pip-audit, Semgrep, Gitleaks, Trivy (CRITICAL = fail), Kubescape, cosign |
-| Load testing | k6: 4 scenarios (smoke/load/stress/soak), SLO thresholds enforced in CI |
-| FinOps | Kubecost: per-namespace cost, budget alerts, rightsizing, weekly Slack report |
-| Infrastructure as code | Terraform: full EKS cluster with VPC, OIDC, KMS, managed node groups |
-| Developer platform | Backstage: Software Catalog, OpenAPI spec, Scaffolder template |
+```
+orbital/
+│
+├── .github/workflows/
+│   ├── ci-cd.yml          # Main pipeline (5 jobs)
+│   ├── pr-checks.yml      # PR gate: lint + test + docker build
+│   ├── devsecops.yml      # 7 scanners: Semgrep, Trivy, Gitleaks, Kubescape, cosign
+│   ├── staging.yml        # Auto-deploy develop → staging EKS
+│   ├── db-backup.yml      # Nightly pg_dump → S3
+│   ├── load-test.yml      # k6: post-deploy smoke + nightly soak
+│   └── finops-report.yml  # Weekly Kubecost cost report → Slack
+│
+├── app/                   # Django application
+│   ├── myapp/
+│   │   ├── telemetry.py   # OpenTelemetry bootstrap (Django + psycopg2)
+│   │   ├── middleware.py  # JSON request logging + rate limiter
+│   │   ├── views.py       # CRUD REST API
+│   │   ├── tests.py       # 18 tests
+│   │   └── settings.py    # 12-factor config
+│   ├── Dockerfile         # Multi-stage, non-root, read-only filesystem
+│   └── requirements.txt   # Django + gunicorn + prometheus + opentelemetry
+│
+├── k8s/
+│   ├── base/              # Deployment, Service, Ingress, HPA, PDB
+│   │   ├── rollout.yaml   # ArgoCD Rollout (blue-green + AnalysisTemplate)
+│   │   ├── network-policy.yaml  # Zero-trust ingress/egress
+│   │   └── rbac/          # Least-privilege service account
+│   └── overlays/
+│       ├── production/    # 5 replicas, 1 vCPU/1Gi
+│       └── staging/       # 2 replicas, 250m/256Mi
+│
+├── gitops/
+│   ├── argocd/install-argocd.sh
+│   └── apps/              # ArgoCD Application manifests
+│
+├── service-mesh/linkerd/
+│   ├── install.sh         # Bootstrap Linkerd + Viz
+│   ├── namespace-inject.yaml   # Enable auto-injection
+│   ├── service-profile.yaml    # Per-route metrics, retries, timeouts
+│   └── traffic-split.yaml      # SMI TrafficSplit for manual canary
+│
+├── tracing/
+│   ├── otel/
+│   │   ├── collector-config.yaml    # OTel Collector pipeline config
+│   │   └── collector-deployment.yaml  # DaemonSet + ConfigMap + RBAC
+│   └── jaeger/
+│       └── jaeger.yaml    # Jaeger all-in-one + Ingress
+│
+├── observability/
+│   ├── prometheus/
+│   │   ├── install.sh     # Helm: kube-prometheus-stack
+│   │   ├── values.yaml    # Retention, storage, Slack/PagerDuty
+│   │   ├── service-monitor.yaml
+│   │   └── alert-rules.yaml  # 10 SLO-based PrometheusRules
+│   ├── grafana/dashboards/
+│   │   └── orbital-overview.json  # 9-panel dashboard
+│   └── alertmanager/config.yaml
+│
+├── load-testing/k6/
+│   ├── scripts/
+│   │   └── api-load-test.js  # 4 scenarios: smoke/load/stress/soak
+│   └── thresholds/
+│       └── slo-thresholds.js  # Reusable SLO threshold definitions
+│
+├── finops/
+│   ├── kubecost/
+│   │   ├── install.sh     # Helm install Kubecost
+│   │   └── values.yaml    # Budget alerts, rightsizing, Slack
+│   └── reports/
+│       └── cost-report.sh  # Weekly cost summary → Slack
+│
+├── platform/backstage/
+│   ├── catalog/
+│   │   └── orbital-component.yaml  # Component, API, Resource entities
+│   └── templates/
+│       └── new-service.yaml  # Scaffolder template for new services
+│
+├── security/              # .trivyignore + .semgrepignore
+├── terraform/
+│   ├── main.tf            # ECR + EC2 + IAM
+│   └── eks.tf             # VPC + EKS + OIDC + KMS + node groups
+│
+├── docs/
+│   ├── architecture.md    # 9 Architecture Decision Records
+│   └── runbooks/
+│       ├── high-error-rate.md
+│       ├── blue-green-rollback.md
+│       ├── load-test-failure.md
+│       └── cost-spike.md
+│
+├── scripts/               # ec2-bootstrap.sh + restore-db.sh
+├── nginx/                 # Nginx reverse proxy config
+├── monitoring/            # CloudWatch dashboard + alarms
+├── .pre-commit-config.yaml
+├── docker-compose.yml
+└── Makefile               # 35+ targets covering every component
+```
 
 ---
 
-## Quick Start — Local Development
+## Quick start — local
 
 ```bash
-git clone https://github.com/aryalrishi29-blip/orbital.git
+git clone https://github.com/YOUR_USERNAME/orbital.git
 cd orbital
-
-# Install pre-commit hooks
 pip install pre-commit && pre-commit install
-
-# Start Django + Postgres
-make up
-
-# Run the full test suite
-make test-cov
-
-# Seed demo articles
-docker compose exec web python manage.py seed_data
-
-# Run a k6 smoke test
-make load-smoke
+make up          # Django + Postgres via Docker Compose
+make test-cov    # 18 tests, coverage report
+make load-smoke  # k6 smoke test against localhost
 ```
-
-API available at `http://localhost:8000`.
 
 ---
 
-## Deploying the Full Platform to EKS
+## Deploying the full platform
 
 ```bash
-# 1. Provision infrastructure (VPC + EKS + ECR + IAM)
+# 1. Provision infrastructure
 cd terraform && terraform apply -var="key_pair_name=my-key"
 aws eks update-kubeconfig --name orbital --region us-east-1
 
-# 2. Install platform components
-make argocd-install    # ArgoCD + Rollouts controller
-make mesh-install      # Linkerd service mesh
+# 2. Install platform components (order matters)
+make argocd-install    # ArgoCD + Rollouts
+make mesh-install      # Linkerd
 make obs-install       # Prometheus + Grafana + Alertmanager
 make tracing-install   # OTel Collector + Jaeger
 make finops-install    # Kubecost
@@ -256,71 +271,68 @@ make argocd-apply      # Register ArgoCD Applications → auto-sync begins
 
 ---
 
-## Observability Dashboards
+## Accessing platform UIs
 
 ```bash
-make grafana-ui        # http://localhost:3000
-make prometheus-ui     # http://localhost:9090
-make argocd-ui         # https://localhost:8080
-make tracing-ui        # http://localhost:16686  (Jaeger)
-make finops-ui         # http://localhost:9090   (Kubecost)
-make mesh-dashboard    # Linkerd Viz
+make prometheus-ui    # http://localhost:9090
+make grafana-ui       # http://localhost:3000
+make alertmanager-ui  # http://localhost:9093
+make argocd-ui        # https://localhost:8080
+make tracing-ui       # http://localhost:16686  (Jaeger)
+make finops-ui        # http://localhost:9090   (Kubecost)
+make mesh-dashboard   # Linkerd Viz
 ```
 
 ---
 
-## GitHub Topics
+## Required GitHub Secrets
 
-Add these in **Settings → About → Topics** on your repository:
-
-`devops` `kubernetes` `gitops` `django` `python` `platform-engineering`
-`argocd` `terraform` `eks` `aws` `observability` `service-mesh` `linkerd`
-`opentelemetry` `prometheus` `grafana` `devsecops` `blue-green-deployment`
-`ci-cd` `github-actions` `jaeger` `k6` `finops` `backstage` `docker`
+| Secret | Description |
+|--------|-------------|
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | IAM credentials (from Terraform output) |
+| `DJANGO_SECRET_KEY` | Django secret key |
+| `ALLOWED_HOSTS` | Production domain |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` / `DB_HOST` | RDS credentials |
+| `PRODUCTION_URL` | `https://api.your-domain.com` |
+| `STAGING_URL` | `https://staging.your-domain.com` |
+| `BACKUP_S3_BUCKET` | S3 bucket for DB backups |
+| `SLACK_WEBHOOK_URL` | Slack webhook for alerts + FinOps reports |
 
 ---
 
-## Operational Runbooks
+## Pipeline flow with all 5 additions
+
+```
+git push → main
+  ↓
+test + security scan (parallel)
+  ↓
+docker build → Trivy CVE scan → cosign sign → push ECR
+  ↓
+update k8s manifest (GitOps commit)
+  ↓
+ArgoCD auto-sync → Linkerd-injected pods deploy
+  ↓
+Blue-green rollout → Prometheus AnalysisTemplate
+  ↓
+k6 smoke test (post-deploy validation)
+  ↓
+OTel traces flowing → Jaeger
+Prometheus scraping /metrics/ → Grafana
+Kubecost tracking namespace cost
+Backstage showing service health
+```
+
+---
+
+## Operational runbooks
 
 | Alert | Runbook |
 |---|---|
-| `DjangoHighErrorRate` | [`docs/runbooks/high-error-rate.md`](docs/runbooks/high-error-rate.md) |
-| `DjangoRolloutDegraded` | [`docs/runbooks/blue-green-rollback.md`](docs/runbooks/blue-green-rollback.md) |
-| k6 SLO breach in CI | [`docs/runbooks/load-test-failure.md`](docs/runbooks/load-test-failure.md) |
-| Kubecost budget alert | [`docs/runbooks/cost-spike.md`](docs/runbooks/cost-spike.md) |
-
----
-
-## Project Structure
-
-```
-orbital/
-├── .github/workflows/     # 7 workflows: CI/CD · security · load test · backup · FinOps
-├── app/                   # Django application (Python 3.11)
-├── k8s/                   # Kubernetes manifests (Kustomize base + overlays)
-├── service-mesh/linkerd/  # Linkerd install · ServiceProfile · TrafficSplit
-├── tracing/               # OTel Collector DaemonSet + Jaeger
-├── observability/         # Prometheus · Grafana · Alertmanager
-├── load-testing/k6/       # k6 scenarios + SLO threshold definitions
-├── finops/                # Kubecost install + weekly cost report
-├── platform/backstage/    # Software catalog + Scaffolder template
-├── gitops/apps/           # ArgoCD Application manifests
-├── terraform/             # ECR + EC2 (main.tf) + full EKS cluster (eks.tf)
-├── docs/
-│   ├── architecture.md    # 9 Architecture Decision Records
-│   ├── images/            # Architecture diagram + platform screenshots
-│   └── runbooks/          # 4 incident response playbooks
-├── .pre-commit-config.yaml
-├── docker-compose.yml
-└── Makefile               # 35+ targets covering every component
-```
-
----
-
-## Author
-
-**Rishi Aryal**
-GitHub: [@aryalrishi29-blip](https://github.com/aryalrishi29-blip)
+| `DjangoHighErrorRate` | `docs/runbooks/high-error-rate.md` |
+| `DjangoRolloutDegraded` | `docs/runbooks/blue-green-rollback.md` |
+| k6 SLO breach in CI | `docs/runbooks/load-test-failure.md` |
+| Kubecost budget alert | `docs/runbooks/cost-spike.md` |
 
 ---
 

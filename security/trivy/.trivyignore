@@ -1,10 +1,10 @@
 # Trivy vulnerability ignore file
+# Only add entries after security review confirms:
+#   a) no fix is available upstream, OR
+#   b) the CVE is not exploitable in this deployment context
+#
 # Format: CVE-ID  # reason — reviewed by — date
 #
-# Add entries here ONLY after security review confirms the CVE is either:
-#   a) a false positive
-#   b) not exploitable in this deployment context
-#   c) has no available fix and is accepted risk
-#
-# Example:
-# CVE-2023-12345  # false positive in Alpine base image — no network exposure — reviewed 2025-01-01
+# Common base-image CVEs with no upstream fix yet:
+# CVE-2023-4641   # glibc - no fix in debian bookworm — reviewed 2025-03 — low risk (no local users)
+# CVE-2024-2236   # libgcrypt - no fix available — reviewed 2025-03 — not exposed externally

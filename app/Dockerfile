@@ -5,12 +5,12 @@
 # ╚══════════════════════════════════════════════════════════════╝
 
 # ── Stage 1: builder ─────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
 
 # Build-time OS deps (compiler + libpq headers for psycopg2)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -22,7 +22,7 @@ RUN pip install --upgrade pip \
 
 
 # ── Stage 2: production ───────────────────────────────────────
-FROM python:3.11-slim AS production
+FROM python:3.11-slim-bookworm AS production
 
 # Non-root user — never run app code as root
 RUN groupadd --system appgroup \
@@ -31,7 +31,7 @@ RUN groupadd --system appgroup \
 WORKDIR /app
 
 # Runtime OS deps only (libpq shared library)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
